@@ -170,7 +170,3 @@ git push origin feature/nombre-de-tu-modulo
 
 
 4. Abre un **Pull Request (PR)** dirigido hacia la rama `desarrollo` para revisión.
-
-```
-
-```
