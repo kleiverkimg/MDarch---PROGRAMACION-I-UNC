@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>720</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MDArch - SyS | Forense Digital &amp; Analizador de Metadatos</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">
+    QMainWindow {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    QWidget {
+      color: #cbd5e1;
+    }
+    QTabWidget::pane {
+      border: 1px solid #1e293b;
+      background-color: #0f172a;
+      border-radius: 8px;
+    }
+    QTabBar::tab {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 10px 20px;
+      margin-right: 4px;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+      font-weight: bold;
+    }
+    QTabBar::tab:selected {
+      background: #0f172a;
+      color: #38bdf8;
+      border-bottom: 3px solid #06b6d4;
+    }
+    QGroupBox {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-weight: bold;
+      color: #38bdf8;
+    }
+    QGroupBox::title {
+      subcontrol-origin: margin;
+      left: 10px;
+      padding: 0 5px;
+    }
+    QLineEdit, QTextEdit, QComboBox {
+      background-color: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      color: #f8fafc;
+      padding: 6px;
+    }
+    QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+      border: 1px solid #06b6d4;
+    }
+    QPushButton {
+      background-color: #0284c7;
+      color: #ffffff;
+      border-radius: 6px;
+      font-weight: bold;
+      padding: 8px 16px;
+    }
+    QPushButton:hover {
+      background-color: #0369a1;
+    }
+    QPushButton#btnLogin {
+      background-color: #0d9488;
+    }
+    QPushButton#btnLogin:hover {
+      background-color: #0f766e;
+    }
+    QTableWidget {
+      background-color: #020617;
+      gridline-color: #1e293b;
+      border: 1px solid #1e293b;
+      color: #22c55e;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+    QHeaderView::section {
+      background-color: #1e293b;
+      color: #f8fafc;
+      padding: 4px;
+      font-weight: bold;
+      border: 1px solid #334155;
+    }
+   </string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayoutMain">
+    <property name="leftMargin"><number>15</number></property>
+    <property name="topMargin"><number>15</number></property>
+    <property name="rightMargin"><number>15</number></property>
+    <property name="bottomMargin"><number>15</number></property>
+    <item>
+     <widget class="QTabWidget" name="mainTabWidget">
+      <property name="currentIndex"><number>0</number></property>
+      
+      <!-- PESTAÑA 1: LOGIN -->
+      <widget class="QWidget" name="tabLogin">
+       <attribute name="title">
+        <string>🔑 Autenticación</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="vLayoutLogin">
+        <item>
+         <spacer name="spacerTopLogin">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupLogin">
+          <property name="maximumSize">
+           <size>
+            <width>420</width>
+            <height>300</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Acceso al Sistema Forense - MDArch</string>
+          </property>
+          <layout class="QVBoxLayout" name="vLayoutForm">
+           <property name="spacing"><number>12</number></property>
+           <property name="leftMargin"><number>20</number></property>
+           <property name="topMargin"><number>20</number></property>
+           <property name="rightMargin"><number>20</number></property>
+           <property name="bottomMargin"><number>20</number></property>
+           <item>
+            <widget class="QLabel" name="UserLabel">
+             <property name="text"><string>Usuario:</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="textUser">
+             <property name="placeholderText"><string>Ingrese su usuario...</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="PassLabel">
+             <property name="text"><string>Contraseña:</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="textPass">
+             <property name="echoMode"><enum>QLineEdit::Password</enum></property>
+             <property name="placeholderText"><string>••••••••••••</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnLogin">
+             <property name="text"><string>Iniciar Sesión</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lblLoginMsg">
+             <property name="styleSheet"><string>color: #ef4444; font-weight: bold;</string></property>
+             <property name="text"><string/></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacerBottomLogin">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- PESTAÑA 2: CARGA Y CONFIGURACIÓN -->
+      <widget class="QWidget" name="tabUpload">
+       <attribute name="title">
+        <string>📂 Cargar Muestra</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="vLayoutUpload">
+        <item>
+         <widget class="QGroupBox" name="groupConfig">
+          <property name="title">
+           <string>Selección de Tipo de Archivo y Motor C/Python</string>
+          </property>
+          <layout class="QFormLayout" name="formLayoutConfig">
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblFileType">
+             <property name="text"><string>Tipo de Archivo Preestablecido:</string></property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="comboFileType">
+             <item><property name="text"><string>PDF Document (.pdf)</string></property></item>
+             <item><property name="text"><string>Executable File (.exe) - Próximamente</string></property></item>
+             <item><property name="text"><string>PNG Image (.png) - Próximamente</string></property></item>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblFilePath">
+             <property name="text"><string>Ruta del Archivo / Muestra:</string></property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <layout class="QHBoxLayout" name="hLayoutPath">
+             <item>
+              <widget class="QLineEdit" name="txtFilePath">
+               <property name="placeholderText"><string>Ejemplo: documento.pdf.exe</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnBrowse">
+               <property name="text"><string>Buscar...</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupPreset">
+          <property name="title">
+           <string>Presets de Muestras Registradas (Caso de Estudio)</string>
+          </property>
+          <layout class="QVBoxLayout" name="vLayoutPreset">
+           <item>
+            <widget class="QPushButton" name="btnLoadSample">
+             <property name="styleSheet"><string>background-color: #334155; color: #38bdf8;</string></property>
+             <property name="text"><string>Cargar Muestra Sospechosa: "documento.pdf.exe"</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnRunAnalysis">
+             <property name="styleSheet"><string>background-color: #059669; font-size: 14px;</string></property>
+             <property name="text"><string>🚀 Ejecutar Extractor Binario en C &amp; Módulo Python</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="spacerUpload">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- PESTAÑA 3: DASHBOARD FORENSE & MITRE ATT&CK -->
+      <widget class="QWidget" name="tabDashboard">
+       <attribute name="title">
+        <string>🛡️ Análisis Forense &amp; MITRE ATT&amp;CK</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="vLayoutDashboard">
+        <item>
+         <widget class="QGroupBox" name="groupMitre">
+          <property name="styleSheet"><string>QGroupBox { border: 2px solid #ef4444; background-color: #18080a; }</string></property>
+          <property name="title"><string>🚨 Alerta Forense &amp; Mapeo MITRE ATT&amp;CK</string></property>
+          <layout class="QVBoxLayout" name="vLayoutMitre">
+           <item>
+            <widget class="QLabel" name="lblMitreTactica">
+             <property name="styleSheet"><string>color: #f87171; font-weight: bold; font-size: 14px;</string></property>
+             <property name="text"><string>Táctica: Defense Evasion (TA0005)</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lblMitreTecnica">
+             <property name="styleSheet"><string>color: #fca5a5; font-weight: bold;</string></property>
+             <property name="text"><string>Técnica: T1036.001 - Masquerading: Invalid Code Signature / Extension</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lblMitreDesc">
+             <property name="styleSheet"><string>color: #e2e8f0;</string></property>
+             <property name="text"><string>Descripción: El archivo oculta su formato ejecutable real bajo una extensión de documento no ejecutable.</string></property>
+             <property name="wordWrap"><bool>true</bool></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupHeaders">
+          <property name="title"><string>Análisis de Cabeceras (Módulo C / Python)</string></property>
+          <layout class="QFormLayout" name="formLayoutHeaders">
+           <item row="0" column="0"><widget class="QLabel" name="lblExtReal"><property name="text"><string>Extensión Real (Magic Bytes):</string></property></widget></item>
+           <item row="0" column="1"><widget class="QLabel" name="valExtReal"><property name="styleSheet"><string>color: #ef4444; font-weight: bold;</string></property><property name="text"><string>.exe (MZ/PE Header Detected)</string></property></widget></item>
+           <item row="1" column="0"><widget class="QLabel" name="lblExtDecl"><property name="text"><string>Extensión Declarada:</string></property></widget></item>
+           <item row="1" column="1"><widget class="QLabel" name="valExtDecl"><property name="styleSheet"><string>color: #f59e0b;</string></property><property name="text"><string>.pdf</string></property></widget></item>
+           <item row="2" column="0"><widget class="QLabel" name="lblAnomalia"><property name="text"><string>Anomalía Detectada:</string></property></widget></item>
+           <item row="2" column="1"><widget class="QLabel" name="valAnomalia"><property name="styleSheet"><string>color: #ef4444; font-weight: bold;</string></property><property name="text"><string>Sí (DISCREPANCIA GRAVE DE FORMATO)</string></property></widget></item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- PESTAÑA 4: VISOR HEXADECIMAL Y BINARIO -->
+      <widget class="QWidget" name="tabHexViewer">
+       <attribute name="title">
+        <string>💻 Visor Hex / Binario</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="vLayoutHex">
+        <item>
+         <widget class="QLabel" name="lblHexInfo">
+          <property name="text"><string>Volcado Binario/Hexadecimal extraído por el ejecutable en C:</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="tblHexDump">
+          <property name="columnCount"><number>3</number></property>
+          <column><property name="text"><string>Offset</string></property></column>
+          <column><property name="text"><string>Hexadecimal Bytes</string></property></column>
+          <column><property name="text"><string>ASCII / Decoded</string></property></column>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBinary">
+          <property name="title"><string>Flujo Binario Bruto (Raw Bits)</string></property>
+          <layout class="QVBoxLayout" name="vLayoutRawBits">
+           <item>
+            <widget class="QTextEdit" name="txtBinaryStream">
+             <property name="readOnly"><bool>true</bool></property>
+             <property name="font">
+              <font><family>Consolas</family><pointsize>10</pointsize></font>
+             </property>
+             <property name="html">
+              <string>&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"&gt;
+&lt;html&gt;&lt;head&gt;&lt;style type="text/css"&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=" font-size:10pt; font-weight:400; font-style:normal;"&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" color:#22c55e;"&gt;01001101 01011010 01010000 00000000 00000011 00000000 00000000 00000000&lt;/span&gt;&lt;/p&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" color:#22c55e;"&gt;00000100 00000000 00000000 00000000 11111111 11111111 00000000 00000000&lt;/span&gt;&lt;/p&gt;
+&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,13 @@
+# Entorno virtual de Python
+Include/
+Lib/
+Scripts/
+pyvenv.cfg
+
+# Archivos de caché y temporales
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.vscode/
+.idea/
