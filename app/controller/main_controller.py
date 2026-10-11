@@ -1,5 +1,3 @@
-# app/controller/main_controller.py
-
 from pathlib import Path
 from PyQt6.QtWidgets import QMainWindow
 from PyQt6 import uic
