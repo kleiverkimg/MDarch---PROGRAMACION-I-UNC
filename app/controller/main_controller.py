@@ -4,10 +4,12 @@ from PyQt6 import uic
 from PyQt6.uic import loadUi  # <--- Se importa directamente desde PyQt6.uic
 from app.model.main_model import MainModel
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+from app.model.database import Database
 
 class MainController(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.db = Database()
         # Carga dinámica del archivo XML UI
         base_dir = Path(__file__).resolve().parent.parent
         ui_path = base_dir / "views" / "main_window.ui"
@@ -29,15 +31,15 @@ class MainController(QMainWindow):
     def handle_login(self):
         user = self.textUser.text().strip()
         pwd = self.textPass.text().strip()
-        
-        if user == "admin" and pwd == "admin123":
+
+        if self.db.validate_user(user,pwd):
             self.lblLoginMsg.setText("✓ Autenticación Exitosa")
             self.mainTabWidget.setCurrentIndex(1) # Cambia a la pestaña "Cargar Muestra"
         else:
             self.lblLoginMsg.setText("❌ Credenciales inválidas (Prueba: admin / admin123)")
 
     def load_sample_data(self):
-        self.txtFilePath.setText("documento.pdf.exe")
+        self.txtFilePath.setText("seleccione un archivo")
 
     def execute_forensic_analysis(self):
         # Poblar tabla de Hex Dump con bytes de la muestra MZ/PE
