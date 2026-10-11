@@ -115,20 +115,8 @@
    </string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayoutMainContainer">
-    <property name="leftMargin">
-     <number>0</number>
-    </property>
-    <property name="topMargin">
-     <number>0</number>
-    </property>
-    <property name="rightMargin">
-     <number>0</number>
-    </property>
-    <property name="bottomMargin">
-     <number>0</number>
-    </property>
-    <item>
+   <layout class="QGridLayout" name="gridLayout_3">
+    <item row="0" column="0">
      <widget class="QStackedWidget" name="stackedMain">
       <property name="currentIndex">
        <number>0</number>
@@ -232,7 +220,7 @@
        </layout>
       </widget>
       <widget class="QWidget" name="pageDashboard">
-       <layout class="QHBoxLayout" name="hLayoutDashboardMain">
+       <layout class="QFormLayout" name="formLayout">
         <property name="leftMargin">
          <number>10</number>
         </property>
@@ -245,8 +233,11 @@
         <property name="bottomMargin">
          <number>10</number>
         </property>
-        <item>
+        <item row="0" column="0">
          <layout class="QVBoxLayout" name="vLayoutSidebar">
+          <property name="spacing">
+           <number>6</number>
+          </property>
           <item>
            <widget class="QLabel" name="lblMenuTitle">
             <property name="font">
@@ -291,7 +282,7 @@
           </item>
          </layout>
         </item>
-        <item>
+        <item row="0" column="1">
          <widget class="QStackedWidget" name="stackedContent">
           <property name="currentIndex">
            <number>1</number>
