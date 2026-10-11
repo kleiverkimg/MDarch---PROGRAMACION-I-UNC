@@ -1,11 +1,10 @@
 from pathlib import Path
-from PyQt6.QtWidgets import QMainWindow
 from PyQt6 import uic
 from PyQt6.uic import loadUi  # <--- Se importa directamente desde PyQt6.uic
 from app.model.main_model import MainModel
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
 from app.model.database import Database
-
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QGraphicsOpacityEffect
+from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
 class MainController(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -25,8 +24,13 @@ class MainController(QMainWindow):
 
         # Conexión de señales/eventos
         self.btnLogin.clicked.connect(self.handle_login)
+        self.btnLogout.clicked.connect(self.handle_logout)
         self.btnLoadSample.clicked.connect(self.load_sample_data)
         self.btnRunAnalysis.clicked.connect(self.execute_forensic_analysis)
+
+        # Conectar el menú lateral izquierdo con el stackedContent derecho
+        self.menuList.currentRowChanged.connect(self.stackedContent.setCurrentIndex)
+        self.menuList.setCurrentRow(0) # Iniciar en "Cargar Muestra"
 
     def handle_login(self):
         user = self.textUser.text().strip()
@@ -34,10 +38,36 @@ class MainController(QMainWindow):
 
         if self.db.validate_user(user,pwd):
             self.lblLoginMsg.setText("✓ Autenticación Exitosa")
-            self.mainTabWidget.setCurrentIndex(1) # Cambia a la pestaña "Cargar Muestra"
+            # TRANSICIÓN ANIMADA DE ENTRADA AL DASHBOARD
+            self.animate_login_transition()
         else:
             self.lblLoginMsg.setText("❌ Credenciales inválidas (Prueba: admin / admin123)")
 
+    def animate_login_transition(self):
+        # Efecto de opacidad para fundido suave (Fade Out del Login -> Fade In del Dashboard)
+        self.effect = QGraphicsOpacityEffect(self.stackedMain)
+        self.stackedMain.setGraphicsEffect(self.effect)
+        
+        self.anim = QPropertyAnimation(self.effect, b"opacity")
+        self.anim.setDuration(500) # Duración de 0.5 segundos
+        self.anim.setStartValue(1.0)
+        self.anim.setEndValue(0.0)
+        
+        def on_animation_finished():
+            # Cambiar a la capa del Dashboard principal
+            self.stackedMain.setCurrentIndex(1)
+            self.effect.setOpacity(1.0) # Restablecer opacidad
+            self.stackedMain.setGraphicsEffect(None) # Remover efecto
+            
+        self.anim.finished.connect(on_animation_finished)
+        self.anim.start()
+
+    def handle_logout(self):
+        # Volver a la pantalla de login limpiando campos
+        self.textUser.clear()
+        self.textPass.clear()
+        self.stackedMain.setCurrentIndex(0)
+        
     def load_sample_data(self):
         self.txtFilePath.setText("seleccione un archivo")
 

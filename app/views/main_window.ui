@@ -218,7 +218,7 @@
           <item>
            <widget class="QListWidget" name="menuList">
             <property name="maximumWidth">
-             <size><width>220</width><height>16777215</height></size>
+             <number>220</number>
             </property>
             <item><property name="text"><string>📂 Cargar Muestra</string></property></item>
             <item><property name="text"><string>🛡️ Análisis MITRE ATT&amp;CK</string></property></item>
@@ -227,6 +227,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnLogout">
+            <property name="maximumWidth">
+             <number>220</number>
+            </property>
             <property name="text"><string>🚪 Cerrar Sesión</string></property>
            </widget>
           </item>
