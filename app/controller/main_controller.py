@@ -3,6 +3,7 @@ from PyQt6 import uic
 from PyQt6.uic import loadUi  # <--- Se importa directamente desde PyQt6.uic
 from model.main_model import MainModel
 from model.database import Database
+from controller.seguridad import Seguridad
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QGraphicsOpacityEffect
 from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
 
@@ -34,9 +35,17 @@ class MainController(QMainWindow):
         self.menuList.setCurrentRow(0) # Iniciar en "Cargar Muestra"
 
     def handle_login(self):
-        user = self.textUser.text().strip()
-        pwd = self.textPass.text().strip()
+        resp1, user = Seguridad.validarTexto(self.textUser.text(), "usuario")
 
+        if (not resp1):
+            self.lblLoginMsg.setText(f"❌ {resp1}")
+            return
+        
+        resp2, pwd = Seguridad.validarTexto(self.textPass.text(), "usuario")
+        if (not resp2):
+            self.lblLoginMsg.setText(f"❌ {resp2}")
+            return
+        
         if self.db.validate_user(user,pwd):
             self.lblLoginMsg.setText("✓ Autenticación Exitosa")
             # TRANSICIÓN ANIMADA DE ENTRADA AL DASHBOARD
@@ -68,7 +77,7 @@ class MainController(QMainWindow):
         self.textUser.clear()
         self.textPass.clear()
         self.stackedMain.setCurrentIndex(0)
-        
+
     def load_sample_data(self):
         self.txtFilePath.setText("seleccione un archivo")
 
