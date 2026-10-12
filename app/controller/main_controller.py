@@ -1,10 +1,11 @@
 from pathlib import Path
 from PyQt6 import uic
 from PyQt6.uic import loadUi  # <--- Se importa directamente desde PyQt6.uic
-from app.model.main_model import MainModel
-from app.model.database import Database
+from model.main_model import MainModel
+from model.database import Database
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QGraphicsOpacityEffect
 from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
+
 class MainController(QMainWindow):
     def __init__(self):
         super().__init__()
