@@ -160,7 +160,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            forma_nombre, estrategia_busqueda, patron_busqueda, longitud_max 
+            SELECT forma_nombre, estrategia_busqueda, patron_busqueda, longitud_max 
             FROM parametros_extraccion 
             WHERE formato_id = ?
         """, (formato_id,))

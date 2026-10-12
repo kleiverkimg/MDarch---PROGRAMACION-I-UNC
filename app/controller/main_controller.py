@@ -4,7 +4,7 @@ from PyQt6.uic import loadUi
 from model.database import Database
 from controller.seguridad import Seguridad
 from controller.Mdata import MdataController  # <--- Importamos tu controlador Mdata
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QGraphicsOpacityEffect
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow, QTableWidgetItem, QGraphicsOpacityEffect
 from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
 
 class MainController(QMainWindow):
@@ -15,7 +15,6 @@ class MainController(QMainWindow):
         
         base_dir = Path(__file__).resolve().parent.parent
         ui_path = base_dir / "views" / "main_window.ui"
-
         loadUi(str(ui_path), self)
         
         self.tblHexDump.setColumnWidth(0, 100)
@@ -25,10 +24,38 @@ class MainController(QMainWindow):
         self.btnLogin.clicked.connect(self.handle_login)
         self.btnLogout.clicked.connect(self.handle_logout)
         self.btnLoadSample.clicked.connect(self.load_sample_data)
+        self.btnBrowse.clicked.connect(self.handle_browse_file)
         self.btnRunAnalysis.clicked.connect(self.execute_forensic_analysis)
 
         self.menuList.currentRowChanged.connect(self.stackedContent.setCurrentIndex)
         self.menuList.setCurrentRow(0)
+
+    def handle_browse_file(self):
+        # Mapeo de formatos comunes según la selección del combo
+        file_type = self.comboFileType.currentText().strip().upper()
+        
+        if "EXE" in file_type or "PE" in file_type or "BINARIO" in file_type:
+            filters = "Ejecutables (*.exe *.dll *.bin);;Todos los archivos (*.*)"
+        elif "PDF" in file_type:
+            filters = "Documentos PDF (*.pdf);;Todos los archivos (*.*)"
+        elif "IMAGEN" in file_type or "IMG" in file_type or "PNG" in file_type or "JPG" in file_type:
+            filters = "Imágenes (*.png *.jpg *.jpeg *.bmp);;Todos los archivos (*.*)"
+        elif "LOG" in file_type or "TXT" in file_type or "TEXTO" in file_type:
+            filters = "Archivos de texto (*.txt *.log *.csv);;Todos los archivos (*.*)"
+        else:
+            filters = "Todos los archivos (*.*)"
+
+        # Abre el explorador de archivos nativo del SO
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar muestra para análisis",
+            "",
+            filters
+        )
+
+        if file_path:
+            self.txtFilePath.setText(file_path)
+            self.execute_forensic_analysis()
 
     def handle_login(self):
         resp1, user = Seguridad.validarTexto(self.textUser.text(), "usuario")
@@ -81,18 +108,19 @@ class MainController(QMainWindow):
             ruta_archivo = "desarrollo.pdf" # O tu archivo de prueba
 
         # 1. Obtenemos las reglas de la BD para PDF (formato_id = 1)
-        reglas = self.db.obtener_reglas_formato(formato_id=1)
-
+        reglas = self.db.obtener_reglas_formato(formato_id=1) 
+        
         # 2. Ejecutamos el análisis dinámico usando C y las reglas obtenidas
         analisis = self.mdata_controller.analizar_con_parametros_bd(ruta_archivo, reglas)
-
+        
         self.tblHexDump.setRowCount(0)
         
         if analisis["exito"]:
-            resultados = analisis["resultados"]
+            resultados, hexadecimal, binario = analisis["resultados"]
             self.tblHexDump.setRowCount(len(resultados))
             
             row_idx = 0
+            self.txtBinaryStream.setText(binario)
             for etiqueta, valor in resultados.items():
                 self.tblHexDump.setItem(row_idx, 0, QTableWidgetItem("PDF Meta"))
                 self.tblHexDump.setItem(row_idx, 1, QTableWidgetItem(etiqueta))
@@ -101,9 +129,6 @@ class MainController(QMainWindow):
         else:
             # En caso de error, mostramos el mensaje en la tabla
             self.tblHexDump.setRowCount(1)
-            self.tblHexDump.setItem(0, 0, QTableWidgetItem("Error"))
-            self.tblHexDump.setItem(0, 1, QTableWidgetItem(analisis.get("error", "Desconocido")))
-            self.tblHexDump.setItem(0, 2, QTableWidgetItem("N/A"))
-
+            
         # Redirigir a la pestaña de resultados en tu interfaz
-        self.mainTabWidget.setCurrentIndex(2)
+        self.stackedContent.setCurrentIndex(2)
