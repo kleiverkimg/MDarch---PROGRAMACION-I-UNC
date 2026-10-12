@@ -1,7 +1,7 @@
 import re
 
 class Seguridad:
-    def validarTexto(self, texto:str, tipo:str):
+    def validarTexto(texto:str, tipo:str):
         if not isinstance(texto, str):
             return False, "La entrada debe ser una cadena de texto."
 
