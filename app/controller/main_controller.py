@@ -1,134 +1,177 @@
-from pathlib import Path
-from PyQt6 import uic
-from PyQt6.uic import loadUi
+import os
+import hashlib
 from model.database import Database
 from controller.seguridad import Seguridad
-from controller.Mdata import MdataController  # <--- Importamos tu controlador Mdata
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow, QTableWidgetItem, QGraphicsOpacityEffect
-from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
+from controller.Mdata import MdataController
+from views.main_view import MainView, LoginDialog, ConfigDialog
+from PyQt6.QtWidgets import QDialog
 
-class MainController(QMainWindow):
+class MainController:
+    """Controlador principal que conecta el modelo de base de datos con la vista."""
     def __init__(self):
-        super().__init__()
         self.db = Database()
-        self.mdata_controller = MdataController() # <--- Inicializamos el controlador de C
-        
-        base_dir = Path(__file__).resolve().parent.parent
-        ui_path = base_dir / "views" / "main_window.ui"
-        loadUi(str(ui_path), self)
-        
-        self.tblHexDump.setColumnWidth(0, 100)
-        self.tblHexDump.setColumnWidth(1, 350)
-        self.tblHexDump.setColumnWidth(2, 180)
+        self.mdata = MdataController()
+        self.vista = MainView()
 
-        self.btnLogin.clicked.connect(self.handle_login)
-        self.btnLogout.clicked.connect(self.handle_logout)
-        self.btnLoadSample.clicked.connect(self.load_sample_data)
-        self.btnBrowse.clicked.connect(self.handle_browse_file)
-        self.btnRunAnalysis.clicked.connect(self.execute_forensic_analysis)
+        # Vinculacion de callbacks y eventos
+        self.vista.callback_ejecutar_analisis = self.ejecutar_analisis_forense
+        self.vista.btn_config.clicked.connect(self.abrir_dialogo_configuracion)
 
-        self.menuList.currentRowChanged.connect(self.stackedContent.setCurrentIndex)
-        self.menuList.setCurrentRow(0)
+    def iniciar(self):
+        """Muestra primero el login. Si las credenciales son validas, abre la consola principal."""
+        dialogo_login = LoginDialog(callback_autenticacion=self.autenticar_operador)
+        if dialogo_login.exec() == QDialog.DialogCode.Accepted:
+            self.vista.show()
+            return True
+        return False
 
-    def handle_browse_file(self):
-        # Mapeo de formatos comunes según la selección del combo
-        file_type = self.comboFileType.currentText().strip().upper()
-        
-        if "EXE" in file_type or "PE" in file_type or "BINARIO" in file_type:
-            filters = "Ejecutables (*.exe *.dll *.bin);;Todos los archivos (*.*)"
-        elif "PDF" in file_type:
-            filters = "Documentos PDF (*.pdf);;Todos los archivos (*.*)"
-        elif "IMAGEN" in file_type or "IMG" in file_type or "PNG" in file_type or "JPG" in file_type:
-            filters = "Imágenes (*.png *.jpg *.jpeg *.bmp);;Todos los archivos (*.*)"
-        elif "LOG" in file_type or "TXT" in file_type or "TEXTO" in file_type:
-            filters = "Archivos de texto (*.txt *.log *.csv);;Todos los archivos (*.*)"
-        else:
-            filters = "Todos los archivos (*.*)"
+    def autenticar_operador(self, usuario, password):
+        """Valida entradas contra inyecciones y comprueba credenciales en la base de datos cifrada."""
+        ok_u, msg_u = Seguridad.validarTexto(usuario, "usuario")
+        if not ok_u:
+            return False, msg_u
 
-        # Abre el explorador de archivos nativo del SO
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Seleccionar muestra para análisis",
-            "",
-            filters
+        ok_p, msg_p = Seguridad.validarTexto(password, "password")
+        if not ok_p:
+            return False, msg_p
+
+        if self.db.validate_user(usuario, password):
+            return True, "Autenticacion correcta"
+        return False, "Usuario o contrasena incorrectos."
+
+    def registrar_nuevo_operador(self, usuario, password):
+        """Valida y da de alta un nuevo usuario con hash SHA-256."""
+        ok_u, msg_u = Seguridad.validarTexto(usuario, "usuario")
+        if not ok_u:
+            return False, msg_u
+
+        ok_p, msg_p = Seguridad.validarTexto(password, "password")
+        if not ok_p:
+            return False, msg_p
+
+        try:
+            pwd_hash = hashlib.sha256(password.encode()).hexdigest()
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (usuario, pwd_hash))
+            conn.commit()
+            conn.close()
+            return True, "Operador registrado exitosamente."
+        except Exception as e:
+            return False, f"Error al guardar: {str(e)}"
+
+    def obtener_historial_logs(self):
+        """Recupera los reportes forenses almacenados en forensic_reports."""
+        try:
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT timestamp, filename, real_extension, anomaly_detected, mitre_technique FROM forensic_reports ORDER BY id DESC")
+            filas = cursor.fetchall()
+            conn.close()
+            return filas
+        except Exception:
+            return []
+
+    def abrir_dialogo_configuracion(self):
+        diag = ConfigDialog(
+            parent=self.vista,
+            callback_crear_usuario=self.registrar_nuevo_operador,
+            callback_obtener_logs=self.obtener_historial_logs
         )
+        diag.exec()
 
-        if file_path:
-            self.txtFilePath.setText(file_path)
-            self.execute_forensic_analysis()
+    def ejecutar_analisis_forense(self, ruta_archivo):
+        """Invoca el motor C, evalua firmas binarias y genera el dictamen."""
+        # 1. Obtener las reglas de metadatos desde la BD (por defecto PDF formato_id=1)
+        reglas = self.db.obtener_reglas_formato(formato_id=1)
+        res_extraccion = self.mdata.analizar_con_parametros_bd(ruta_archivo, reglas)
 
-    def handle_login(self):
-        resp1, user = Seguridad.validarTexto(self.textUser.text(), "usuario")
-        if not resp1:
-            self.lblLoginMsg.setText(f"❌ {resp1}")
+        if not res_extraccion.get("exito"):
             return
+
+        metadatos_dict, contenido_text, contenido_hex, contenido_bin = res_extraccion["resultados"]
+        nombre_fichero = os.path.basename(ruta_archivo)
+        ext_declarada = os.path.splitext(nombre_fichero)[1].lower()
+
+        # 2. Heuristica de discrepancia entre extension declarada y cabecera binaria real
+        es_anomalia = False
+        ext_real = ext_declarada
+        mitre_data = {}
+        riesgo_data = {}
+        recomendacion_txt = ""
+
+        # Verificacion basica de firma binaria
+        cabecera_hex = contenido_hex[:20].upper().replace(" ", "")
         
-        resp2, pwd = Seguridad.validarTexto(self.textPass.text(), "password")
-        if not resp2:
-            self.lblLoginMsg.setText(f"❌ {resp2}")
-            return
-        
-        if self.db.validate_user(user, pwd):
-            self.lblLoginMsg.setText("✓ Autenticación Exitosa")
-            self.animate_login_transition()
+        if "4D5A" in cabecera_hex:  # Firma MZ de ejecutable PE
+            ext_real = ".exe"
+        elif "25504446" in cabecera_hex:  # Firma %PDF
+            ext_real = ".pdf"
+        elif "89504E47" in cabecera_hex:  # Firma PNG
+            ext_real = ".png"
+
+        if ext_declarada != ext_real and ext_real != "":
+            es_anomalia = True
+            mitre_data = {
+                "es_anomalia": True,
+                "estado": "ANOMALIA CRITICA: DISCREPANCIA ESTRUCTURAL",
+                "tactica": "Defense Evasion (TA0005)",
+                "tecnica": "T1036.001 - Masquerading: Extension Discrepancy",
+                "descripcion": f"El archivo simula ser {ext_declarada}, pero los Magic Bytes demuestran que es un archivo {ext_real}."
+            }
+            riesgo_data = {
+                "confidencialidad": "Medio (Posible exfiltracion)",
+                "integridad": "Critico (Cabecera falsificada)",
+                "disponibilidad": "Bajo",
+                "score": 85
+            }
+            recomendacion_txt = (
+                "1. Aislar inmediatamente la muestra en entorno de sandbox.\n"
+                "2. Bloquear la ejecucion directa; el archivo esta enmascarando su tipo real.\n"
+                "3. Registrar el hash SHA-256 en la lista negra perimetral."
+            )
         else:
-            self.lblLoginMsg.setText("❌ Credenciales inválidas")
+            mitre_data = {
+                "es_anomalia": False,
+                "estado": "ESTRUCTURA INTEGRA",
+                "tactica": "Ninguna detectada",
+                "tecnica": "Sin patrones maliciosos conocidos",
+                "descripcion": "La firma de cabecera binaria coincide de forma consistente con la extension del fichero."
+            }
+            riesgo_data = {
+                "confidencialidad": "Bajo",
+                "integridad": "Integro",
+                "disponibilidad": "Normal",
+                "score": 10
+            }
+            recomendacion_txt = (
+                "1. La cabecera es valida y coherente.\n"
+                "2. El archivo puede procesarse bajo los protocolos habituales de la organizacion."
+            )
 
-    def animate_login_transition(self):
-        self.effect = QGraphicsOpacityEffect(self.stackedMain)
-        self.stackedMain.setGraphicsEffect(self.effect)
-        
-        self.anim = QPropertyAnimation(self.effect, b"opacity")
-        self.anim.setDuration(500)
-        self.anim.setStartValue(1.0)
-        self.anim.setEndValue(0.0)
-        
-        def on_animation_finished():
-            self.stackedMain.setCurrentIndex(1)
-            self.effect.setOpacity(1.0)
-            self.stackedMain.setGraphicsEffect(None)
-            
-        self.anim.finished.connect(on_animation_finished)
-        self.anim.start()
-
-    def handle_logout(self):
-        self.textUser.clear()
-        self.textPass.clear()
-        self.stackedMain.setCurrentIndex(0)
-
-    def load_sample_data(self):
-        self.txtFilePath.setText("seleccione un archivo")
-
-    def execute_forensic_analysis(self):
-        ruta_archivo = self.txtFilePath.text().strip()
-        
-        # Validación básica si no hay ruta seleccionada
-        if not ruta_archivo or ruta_archivo == "seleccione un archivo":
-            # Si quieres mantener el respaldo visual o probar con un archivo por defecto:
-            ruta_archivo = "desarrollo.pdf" # O tu archivo de prueba
-
-        # 1. Obtenemos las reglas de la BD para PDF (formato_id = 1)
-        reglas = self.db.obtener_reglas_formato(formato_id=1) 
-        
-        # 2. Ejecutamos el análisis dinámico usando C y las reglas obtenidas
-        analisis = self.mdata_controller.analizar_con_parametros_bd(ruta_archivo, reglas)
-        
-        self.tblHexDump.setRowCount(0)
-        
-        if analisis["exito"]:
-            resultados, hexadecimal, binario = analisis["resultados"]
-            self.tblHexDump.setRowCount(len(resultados))
-            
-            row_idx = 0
-            self.txtBinaryStream.setText(binario)
-            for etiqueta, valor in resultados.items():
-                self.tblHexDump.setItem(row_idx, 0, QTableWidgetItem("PDF Meta"))
-                self.tblHexDump.setItem(row_idx, 1, QTableWidgetItem(etiqueta))
-                self.tblHexDump.setItem(row_idx, 2, QTableWidgetItem(str(valor)))
-                row_idx += 1
-        else:
-            # En caso de error, mostramos el mensaje en la tabla
-            self.tblHexDump.setRowCount(1)
-            
-        # Redirigir a la pestaña de resultados en tu interfaz
-        self.stackedContent.setCurrentIndex(2)
+        # 3. Guardar el reporte en la base de datos cifrada
+        reporte_db = {
+            "archivo": nombre_fichero,
+            "analisis_cabecera": {
+                "extension_declarada": ext_declarada,
+                "extension_real": ext_real,
+                "anomalia_detectada": es_anomalia
+            },
+            "mitre_attck": {
+                "tactica": mitre_data["tactica"],
+                "tecnica": mitre_data["tecnica"],
+                "descripcion": mitre_data["descripcion"]
+            }
+        }
+        self.db.save_report(reporte_db)
+        print(metadatos_dict)
+        # 4. Enviar datos a la vista para iniciar la aparicion secuencial
+        self.vista.ejecutar_proceso_secuencial_interfaz({
+            "hex_dump": contenido_hex[:3000],
+            "bin_stream": contenido_bin[:1500],
+            "text_stream": contenido_text[:1500],            
+            "mitre": mitre_data,
+            "metadatos": metadatos_dict,
+            "riesgo": riesgo_data,
+            "recomendaciones": recomendacion_txt
+        })

@@ -91,17 +91,19 @@ class MdataController:
         
         # Recorremos cada regla dictada por la base de datos
         for forma, estrategia, patron, longitud_max in reglas_bd:
-            pos = contenido_archivo.find(patron)            
+            pos = contenido_archivo.find(patron)
             if pos != -1:
                 inicio_valor = pos + len(patron)
                 fin_valor = min(inicio_valor + longitud_max, len(contenido_archivo))
-                valor_extraido = contenido_archivo[inicio_valor:fin_valor].strip()                
+                valor_extraido = contenido_archivo[inicio_valor:fin_valor].strip()  
+                
+                cierre = valor_extraido.find(")")          
                 # Limpiar caracteres comunes de sintaxis PDF
-                valor_extraido = valor_extraido.lstrip("(").rstrip(")")                
+                valor_extraido = valor_extraido[1:cierre].strip() 
 
                 clave_resultado = f"{forma} -> {patron}"
                 metadatos_encontrados[clave_resultado] = valor_extraido
             else:
                 metadatos_encontrados[f"{forma} -> {patron}"] = "No detectado"
 
-        return {"exito": True, "resultados": [metadatos_encontrados, contenido_hexadecimal, contenido_binario]}
+        return {"exito": True, "resultados": [metadatos_encontrados, contenido_archivo, contenido_hexadecimal, contenido_binario]}
