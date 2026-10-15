@@ -125,11 +125,14 @@ class MainController:
 
         # 4. Enviar datos a la vista para iniciar la aparicion secuencial
         self.vista.ejecutar_proceso_secuencial_interfaz({
-            "hex_dump": contenido_hex,
-            "bin_stream": contenido_bin,
-            "text_stream": contenido_text,            
-            "mitre": mitre_data,
-            "metadatos": metadatos_dict,
-            "riesgo": riesgo_data,
-            "recomendaciones": recomendacion_txt
+             "hex_dump": contenido_hex,
+             "bin_stream": contenido_bin,
+             "text_stream": contenido_text,  
+             "cabecera": analisis_cabecera,
+             "ioc": iocs_extraidos,
+             "yara": resultados_yara,
+             "mitre": mitre_data["correlaciones"],
+             "metadatos": metadatos_dict,
+             "riesgo": evaluacion_riesgo_cid,
+             "recomendaciones": plan_mitigacion
         })
