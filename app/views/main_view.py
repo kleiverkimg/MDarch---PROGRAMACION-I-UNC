@@ -1,11 +1,11 @@
 import sys
+import re
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QGridLayout,
     QLabel,
     QPushButton,
     QFrame,
@@ -84,8 +84,7 @@ CONFIG_TEMA = {
 
 
 class SeccionDesplegable(QFrame):
-    """Contenedor de tipo acordeon con cabecera interactiva y subtitulo de estado."""
-    def __init__(self, titulo_base, widget_contenido, parent=None):
+    def __init__(self, titulo_base, widget_contenido, abierto_inicial=False, parent=None):
         super().__init__(parent)
         self.setObjectName("seccion_desplegable")
         self.layout_contenedor = QVBoxLayout(self)
@@ -94,7 +93,7 @@ class SeccionDesplegable(QFrame):
 
         self.titulo_base = titulo_base
         self.subtitulo = ""
-        self.esta_abierto = True
+        self.esta_abierto = abierto_inicial
 
         self.btn_cabecera = QPushButton(self._generar_texto_boton(), self)
         self.btn_cabecera.setObjectName("btn_acordeon")
@@ -103,6 +102,7 @@ class SeccionDesplegable(QFrame):
         self.layout_contenedor.addWidget(self.btn_cabecera)
 
         self.contenido = widget_contenido
+        self.contenido.setVisible(self.esta_abierto)
         self.layout_contenedor.addWidget(self.contenido)
 
     def _generar_texto_boton(self):
@@ -132,7 +132,6 @@ class SeccionDesplegable(QFrame):
 
 
 class TarjetaPilarCID(QFrame):
-    """Tarjeta individual para mostrar el impacto en Confidencialidad, Integridad o Disponibilidad."""
     def __init__(self, nombre_pilar, parent=None):
         super().__init__(parent)
         self.setObjectName("tarjeta_pilar_cid")
@@ -141,7 +140,7 @@ class TarjetaPilarCID(QFrame):
         layout.setSpacing(4)
 
         self.lbl_titulo = QLabel(nombre_pilar.upper(), self)
-        self.lbl_titulo.setStyleSheet("font-size: 11px; font-weight: 700; letter-spacing: 0.5px;")
+        self.lbl_titulo.setStyleSheet("font-size: 11px; font-weight: 700;")
 
         self.lbl_nivel = QLabel("NORMAL", self)
         self.lbl_nivel.setStyleSheet("font-size: 14px; font-weight: 800;")
@@ -157,12 +156,12 @@ class TarjetaPilarCID(QFrame):
 
     def actualizar(self, nivel, motivo, tema="oscuro"):
         t = CONFIG_TEMA[tema]
-        nivel_normalizado = str(nivel).strip().capitalize()
-        
-        if nivel_normalizado in ["Critico", "Crítico", "Alto"]:
+        nivel_norm = str(nivel).strip().capitalize()
+
+        if nivel_norm in ["Critico", "Crítico", "Alto"]:
             color = t["alerta_rojo"]
             fondo = t["fondo_rojo_alerta"]
-        elif nivel_normalizado == "Medio":
+        elif nivel_norm == "Medio":
             color = t["alerta_ambar"]
             fondo = t["fondo_ambar_alerta"]
         else:
@@ -178,9 +177,9 @@ class TarjetaPilarCID(QFrame):
         """)
         self.lbl_titulo.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 700;")
         self.lbl_nivel.setStyleSheet(f"color: {color}; font-size: 14px; font-weight: 800;")
-        self.lbl_nivel.setText(nivel_normalizado.upper())
+        self.lbl_nivel.setText(nivel_norm.upper())
 
-        texto_motivo = motivo if motivo else "Sin impacto adverso detectado."
+        texto_motivo = motivo if motivo else "Sin riesgo identificado sobre este pilar."
         self.lbl_motivo.setText(texto_motivo)
         self.lbl_motivo.setStyleSheet(f"color: {t['texto_principal']}; font-size: 11px;")
 
@@ -329,7 +328,7 @@ class MainView(QMainWindow):
 
     def inicializar_ventana(self):
         self.setWindowTitle("MDArch, Analizador Forense y Deteccion de Amenazas")
-        self.resize(1260, 800)
+        self.resize(1280, 820)
         self.setMinimumSize(1040, 680)
 
     def construir_interfaz(self):
@@ -370,11 +369,11 @@ class MainView(QMainWindow):
 
         self.layout_raiz.addLayout(self.layout_barra_superior)
 
-        # Area de trabajo principal
+        # Area principal
         self.layout_cuerpo = QHBoxLayout()
         self.layout_cuerpo.setSpacing(16)
 
-        # Panel Izquierdo
+        # Panel Izquierdo: Carga y Volcados
         self.panel_izquierdo = QFrame(self)
         self.panel_izquierdo.setObjectName("panel_contenedor")
         self.layout_panel_izq = QVBoxLayout(self.panel_izquierdo)
@@ -382,7 +381,7 @@ class MainView(QMainWindow):
         self.layout_panel_izq.setSpacing(10)
         self.construir_panel_izquierdo()
 
-        # Panel Derecho
+        # Panel Derecho: Analisis con Scroll
         self.panel_derecho = QFrame(self)
         self.panel_derecho.setObjectName("panel_contenedor")
         self.layout_panel_der = QVBoxLayout(self.panel_derecho)
@@ -455,7 +454,7 @@ class MainView(QMainWindow):
         self.layout_acordeones.setContentsMargins(4, 4, 10, 4)
         self.layout_acordeones.setSpacing(10)
 
-        # 1. Cabecera
+        # 1. Cabecera (Abierto por defecto)
         self.card_cabecera = QFrame()
         self.card_cabecera.setObjectName("card_cabecera")
         layout_c = QVBoxLayout(self.card_cabecera)
@@ -469,76 +468,33 @@ class MainView(QMainWindow):
         layout_c.addWidget(self.lbl_cabecera_estado)
         layout_c.addWidget(self.lbl_cabecera_detalle)
 
-        self.sec_cabecera = SeccionDesplegable("1. Validacion de Cabecera y Firmas", self.card_cabecera)
+        self.sec_cabecera = SeccionDesplegable("1. Validacion de Cabecera y Firmas", self.card_cabecera, abierto_inicial=True)
         self.layout_acordeones.addWidget(self.sec_cabecera)
 
-        # 2. Metadatos
-        self.tbl_metadatos = QTableWidget()
-        self.tbl_metadatos.setColumnCount(2)
-        self.tbl_metadatos.setHorizontalHeaderLabels(["Propiedad / Token", "Valor Extraido"])
-        self.tbl_metadatos.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.tbl_metadatos.horizontalHeader().setStretchLastSection(True)
-        self.tbl_metadatos.verticalHeader().setVisible(False)
-        self.tbl_metadatos.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.tbl_metadatos.setMinimumHeight(150)
-
-        self.sec_metadatos = SeccionDesplegable("2. Metadatos de Estructura Binaria", self.tbl_metadatos)
-        self.layout_acordeones.addWidget(self.sec_metadatos)
-
-        # 3. IOCs
-        self.txt_iocs = QTextEdit()
-        self.txt_iocs.setReadOnly(True)
-        self.txt_iocs.setMinimumHeight(110)
-        self.txt_iocs.setPlaceholderText("IPs, URLs, dominios y comandos detectados.")
-
-        self.sec_iocs = SeccionDesplegable("3. Indicadores de Compromiso (IOCs)", self.txt_iocs)
-        self.layout_acordeones.addWidget(self.sec_iocs)
-
-        # 4. YARA
-        self.txt_yara = QTextEdit()
-        self.txt_yara.setReadOnly(True)
-        self.txt_yara.setMinimumHeight(110)
-        self.txt_yara.setPlaceholderText("Firmas y reglas de deteccion YARA coincidentes.")
-
-        self.sec_yara = SeccionDesplegable("4. Modulo de Reglas YARA", self.txt_yara)
-        self.layout_acordeones.addWidget(self.sec_yara)
-
-        # 5. MITRE ATT&CK
-        self.txt_mitre = QTextEdit()
-        self.txt_mitre.setReadOnly(True)
-        self.txt_mitre.setMinimumHeight(130)
-        self.txt_mitre.setPlaceholderText("Tecnicas y tacticas de MITRE ATT&CK correlacionadas.")
-
-        self.sec_mitre = SeccionDesplegable("5. Correlacion Heuristica MITRE ATT&CK", self.txt_mitre)
-        self.layout_acordeones.addWidget(self.sec_mitre)
-
-        # 6. Triada CID y Nivel de Riesgo (Dashboard estructurado)
+        # 2. Triada CID y Nivel de Riesgo (Reubicado al 2do puesto, Abierto por defecto)
         self.card_cid = QFrame()
         self.card_cid.setObjectName("card_cid")
         layout_cid_principal = QVBoxLayout(self.card_cid)
         layout_cid_principal.setContentsMargins(14, 14, 14, 14)
         layout_cid_principal.setSpacing(12)
 
-        # Encabezado del dashboard: Estado general a la izquierda, metricas a la derecha
         layout_resumen_seguridad = QHBoxLayout()
         layout_resumen_seguridad.setSpacing(14)
 
-        # Bloque izquierdo: Badge de riesgo general
         bloque_badge = QVBoxLayout()
         bloque_badge.setSpacing(4)
         lbl_titulo_estado = QLabel("ESTADO GENERAL:", self)
         lbl_titulo_estado.setStyleSheet("font-size: 11px; font-weight: 700; color: #8b949e;")
-        
+
         self.lbl_badge_riesgo = QLabel("SIN AMENAZAS", self)
         self.lbl_badge_riesgo.setObjectName("lbl_badge_riesgo")
         self.lbl_badge_riesgo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_badge_riesgo.setFixedHeight(36)
-        
+        self.lbl_badge_riesgo.setFixedHeight(34)
+
         bloque_badge.addWidget(lbl_titulo_estado)
         bloque_badge.addWidget(self.lbl_badge_riesgo)
         layout_resumen_seguridad.addLayout(bloque_badge, 45)
 
-        # Bloque derecho: Puntuacion y cantidad de indicadores
         bloque_metricas = QVBoxLayout()
         bloque_metricas.setSpacing(4)
 
@@ -561,12 +517,10 @@ class MainView(QMainWindow):
 
         layout_cid_principal.addLayout(layout_resumen_seguridad)
 
-        # Subtitulo seccional
         lbl_sub_cid = QLabel("CLASIFICACION DE IMPACTO TRIADA CID", self)
         lbl_sub_cid.setStyleSheet("font-size: 11px; font-weight: 800; color: #8b949e; margin-top: 4px;")
         layout_cid_principal.addWidget(lbl_sub_cid)
 
-        # Tres tarjetas modulares en paralelo para la triada
         layout_tres_pilares = QHBoxLayout()
         layout_tres_pilares.setSpacing(10)
 
@@ -579,16 +533,61 @@ class MainView(QMainWindow):
         layout_tres_pilares.addWidget(self.card_disp)
         layout_cid_principal.addLayout(layout_tres_pilares)
 
-        self.sec_cid = SeccionDesplegable("6. Impacto en Triada CID y Riesgo", self.card_cid)
+        self.sec_cid = SeccionDesplegable("2. Impacto en Triada CID y Evaluacion de Riesgo", self.card_cid, abierto_inicial=True)
         self.layout_acordeones.addWidget(self.sec_cid)
 
-        # 7. Recomendaciones
+        # 3. Metadatos (Cerrado por defecto)
+        self.tbl_metadatos = QTableWidget()
+        self.tbl_metadatos.setColumnCount(3)
+        self.tbl_metadatos.setHorizontalHeaderLabels(["Origen / Formato", "Propiedad", "Valor Extraido"])
+        self.tbl_metadatos.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_metadatos.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_metadatos.horizontalHeader().setStretchLastSection(True)
+        self.tbl_metadatos.verticalHeader().setVisible(False)
+        self.tbl_metadatos.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.tbl_metadatos.setMinimumHeight(170)
+
+        self.sec_metadatos = SeccionDesplegable("3. Metadatos de Estructura Binaria", self.tbl_metadatos, abierto_inicial=False)
+        self.layout_acordeones.addWidget(self.sec_metadatos)
+
+        # 4. IOCs en Tabla (Cerrado por defecto)
+        self.tbl_iocs = QTableWidget()
+        self.tbl_iocs.setColumnCount(2)
+        self.tbl_iocs.setHorizontalHeaderLabels(["Categoria de Indicador", "Valor Detectado"])
+        self.tbl_iocs.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tbl_iocs.horizontalHeader().setStretchLastSection(True)
+        self.tbl_iocs.verticalHeader().setVisible(False)
+        self.tbl_iocs.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.tbl_iocs.setMinimumHeight(150)
+
+        self.sec_iocs = SeccionDesplegable("4. Indicadores de Compromiso (IOCs)", self.tbl_iocs, abierto_inicial=False)
+        self.layout_acordeones.addWidget(self.sec_iocs)
+
+        # 5. YARA (Cerrado por defecto)
+        self.txt_yara = QTextEdit()
+        self.txt_yara.setReadOnly(True)
+        self.txt_yara.setMinimumHeight(120)
+        self.txt_yara.setPlaceholderText("Firmas y reglas de deteccion YARA coincidentes.")
+
+        self.sec_yara = SeccionDesplegable("5. Modulo de Reglas YARA", self.txt_yara, abierto_inicial=False)
+        self.layout_acordeones.addWidget(self.sec_yara)
+
+        # 6. MITRE ATT&CK (Cerrado por defecto)
+        self.txt_mitre = QTextEdit()
+        self.txt_mitre.setReadOnly(True)
+        self.txt_mitre.setMinimumHeight(130)
+        self.txt_mitre.setPlaceholderText("Tecnicas y tacticas de MITRE ATT&CK correlacionadas.")
+
+        self.sec_mitre = SeccionDesplegable("6. Correlacion Heuristica MITRE ATT&CK", self.txt_mitre, abierto_inicial=False)
+        self.layout_acordeones.addWidget(self.sec_mitre)
+
+        # 7. Recomendaciones (Cerrado por defecto)
         self.txt_recomendaciones = QTextEdit()
         self.txt_recomendaciones.setReadOnly(True)
         self.txt_recomendaciones.setMinimumHeight(100)
         self.txt_recomendaciones.setPlaceholderText("Acciones correctivas recomendadas.")
 
-        self.sec_recomendaciones = SeccionDesplegable("7. Plan y Medidas de Mitigacion", self.txt_recomendaciones)
+        self.sec_recomendaciones = SeccionDesplegable("7. Plan y Medidas de Mitigacion", self.txt_recomendaciones, abierto_inicial=False)
         self.layout_acordeones.addWidget(self.sec_recomendaciones)
 
         self.layout_acordeones.addStretch()
@@ -610,27 +609,28 @@ class MainView(QMainWindow):
             self.callback_ejecutar_analisis(ruta)
 
     def ejecutar_proceso_secuencial_interfaz(self, datos):
+        # Cerramos temporalmente para reiniciar la animacion
         self.sec_cabecera.cerrar()
+        self.sec_cid.cerrar()
         self.sec_metadatos.cerrar()
         self.sec_iocs.cerrar()
         self.sec_yara.cerrar()
         self.sec_mitre.cerrar()
-        self.sec_cid.cerrar()
         self.sec_recomendaciones.cerrar()
 
-        # Volcados protegidos
+        # Volcados crudos en panel izquierdo
         self.txt_hex_view.setText(str(datos.get("hex_dump", ""))[:8000])
         self.txt_bin_view.setText(str(datos.get("bin_stream", ""))[:4000])
         self.txt_text_view.setText(str(datos.get("text_stream", ""))[:4000])
 
-        # Renderizado secuencial
-        QTimer.singleShot(300, lambda: self._mostrar_cabecera(datos.get("cabecera", {})))
-        QTimer.singleShot(600, lambda: self._mostrar_metadatos(datos.get("metadatos", {})))
-        QTimer.singleShot(900, lambda: self._mostrar_iocs(datos.get("ioc", {})))
-        QTimer.singleShot(1200, lambda: self._mostrar_yara(datos.get("yara", {})))
+        # Procesamiento secuencial escalonado
+        QTimer.singleShot(250, lambda: self._mostrar_cabecera(datos.get("cabecera", {})))
+        QTimer.singleShot(500, lambda: self._mostrar_cid(datos.get("riesgo", {}), datos))
+        QTimer.singleShot(750, lambda: self._mostrar_metadatos(datos.get("metadatos", {})))
+        QTimer.singleShot(1000, lambda: self._mostrar_iocs(datos.get("ioc", {})))
+        QTimer.singleShot(1250, lambda: self._mostrar_yara(datos.get("yara", {})))
         QTimer.singleShot(1500, lambda: self._mostrar_mitre(datos.get("mitre", [])))
-        QTimer.singleShot(1800, lambda: self._mostrar_cid(datos.get("riesgo", {}), datos))
-        QTimer.singleShot(2100, lambda: self._mostrar_recomendaciones(datos.get("recomendaciones", [])))
+        QTimer.singleShot(1750, lambda: self._mostrar_recomendaciones(datos.get("recomendaciones", [])))
 
     def _mostrar_cabecera(self, c):
         t = CONFIG_TEMA[self.tema_actual]
@@ -653,56 +653,164 @@ class MainView(QMainWindow):
         )
         self.sec_cabecera.abrir(subtitulo)
 
+    def _mostrar_cid(self, r, datos_completos):
+        t = CONFIG_TEMA[self.tema_actual]
+
+        c_dict = r.get("confidencialidad", {})
+        i_dict = r.get("integridad", {})
+        d_dict = r.get("disponibilidad", {})
+
+        c_nivel = c_dict.get("nivel", "Bajo") if isinstance(c_dict, dict) else str(c_dict)
+        i_nivel = i_dict.get("nivel", "Bajo") if isinstance(i_dict, dict) else str(i_dict)
+        d_nivel = d_dict.get("nivel", "Bajo") if isinstance(d_dict, dict) else str(d_dict)
+
+        c_motivo = c_dict.get("motivos", [""])[0] if isinstance(c_dict, dict) and c_dict.get("motivos") else ""
+        i_motivo = i_dict.get("motivos", [""])[0] if isinstance(i_dict, dict) and i_dict.get("motivos") else ""
+        d_motivo = d_dict.get("motivos", [""])[0] if isinstance(d_dict, dict) and d_dict.get("motivos") else ""
+
+        self.card_conf.actualizar(c_nivel, c_motivo, self.tema_actual)
+        self.card_inte.actualizar(i_nivel, i_motivo, self.tema_actual)
+        self.card_disp.actualizar(d_nivel, d_motivo, self.tema_actual)
+
+        escala = {"Critico": 3.4, "Crítico": 3.4, "Alto": 3.0, "Medio": 1.8, "Bajo": 0.5, "Normal": 0.0}
+        score_10 = escala.get(c_nivel.capitalize(), 0.5) + escala.get(i_nivel.capitalize(), 0.5) + escala.get(d_nivel.capitalize(), 0.5)
+        score_10 = min(round(score_10, 1), 10.0)
+        porcentaje_barra = int(score_10 * 10)
+
+        total_indicadores = 0
+        iocs = datos_completos.get("ioc", {})
+        if isinstance(iocs, dict):
+            total_indicadores += len(iocs.get("urls", [])) + len(iocs.get("ips", [])) + len(iocs.get("dominios", [])) + len(iocs.get("comandos", []))
+            for hlist in iocs.get("hashes", {}).values():
+                total_indicadores += len(hlist)
+        yara = datos_completos.get("yara", {})
+        if isinstance(yara, dict):
+            total_indicadores += yara.get("total_coincidencias", 0)
+
+        self.lbl_puntuacion_amenaza.setText(f"Puntuacion de Riesgo: {score_10} / 10")
+        self.bar_riesgo_general.setValue(porcentaje_barra)
+        self.lbl_conteo_indicadores.setText(f"Indicadores encontrados: {total_indicadores}")
+
+        if score_10 >= 6.0:
+            color_badge = t["alerta_rojo"]
+            fondo_badge = t["fondo_rojo_alerta"]
+            texto_badge = "RIESGO ALTO (Contenido hostil)"
+        elif score_10 >= 3.0:
+            color_badge = t["alerta_ambar"]
+            fondo_badge = t["fondo_ambar_alerta"]
+            texto_badge = "RIESGO MEDIO (Anomalias bajo observacion)"
+        else:
+            color_badge = t["alerta_verde"]
+            fondo_badge = t["fondo_verde_alerta"]
+            texto_badge = "ESTADO LIMPIO (Firma integra)"
+
+        self.lbl_badge_riesgo.setText(texto_badge)
+        self.lbl_badge_riesgo.setStyleSheet(f"""
+            QLabel#lbl_badge_riesgo {{
+                background-color: {fondo_badge};
+                color: {color_badge};
+                border: 1px solid {color_badge};
+                border-radius: {t['borde_radio']};
+                font-weight: 800;
+                font-size: 11px;
+                padding: 4px 8px;
+            }}
+        """)
+
+        # La seccion CID permanece abierta tras el analisis
+        self.sec_cid.abrir(f"Score {score_10}/10")
+
+    def _sanitizar_metadato(self, clave, valor):
+        origen = "Estructura PDF"
+        propiedad = clave
+
+        if "->" in clave:
+            partes = clave.split("->")
+            origen = partes[0].replace("_", " ").strip()
+            propiedad = partes[1].strip()
+
+        mapeo_propiedades = {
+            "/Title": "Titulo del Documento",
+            "/Author": "Autor",
+            "/Creator": "Aplicacion Creadora",
+            "/Producer": "Productor PDF",
+            "/CreationDate": "Fecha de Creacion",
+            "<dc:title>": "Titulo (XMP)",
+            "<dc:creator>": "Creador (XMP)",
+            "<xmp:CreateDate>": "Fecha Creacion (XMP)"
+        }
+        if propiedad in mapeo_propiedades:
+            propiedad = mapeo_propiedades[propiedad]
+
+        val_limpio = str(valor)
+
+        # Limpiar secuencias de bytes nulos tipicas de UTF-16
+        val_limpio = val_limpio.replace("x00", "").replace("\x00", "").replace("□", "").strip()
+
+        # Extraer contenido util de etiquetas RDF o eliminar etiquetas XML residuales
+        match_li = re.search(r"<rdf:li>(.*?)</rdf:li>", val_limpio, re.DOTALL)
+        if match_li:
+            val_limpio = match_li.group(1).strip()
+        else:
+            val_limpio = re.sub(r"<[^>]+>", "", val_limpio).strip()
+
+        # Limpiar prefijos de fechas PDF tipo D:
+        if val_limpio.startswith("D:"):
+            val_limpio = val_limpio[2:].strip()
+
+        if not val_limpio or val_limpio == "No detectado":
+            val_limpio = "No definido"
+
+        return origen, propiedad, val_limpio
+
     def _mostrar_metadatos(self, metas):
         cantidad = len(metas)
         self.tbl_metadatos.setRowCount(cantidad)
+
         for fila, (k, v) in enumerate(metas.items()):
-            self.tbl_metadatos.setItem(fila, 0, QTableWidgetItem(str(k)))
-            self.tbl_metadatos.setItem(fila, 1, QTableWidgetItem(str(v)))
-        self.sec_metadatos.abrir(f"{cantidad} campos extraidos")
+            origen, propiedad, valor_limpio = self._sanitizar_metadato(k, v)
+            self.tbl_metadatos.setItem(fila, 0, QTableWidgetItem(origen))
+            self.tbl_metadatos.setItem(fila, 1, QTableWidgetItem(propiedad))
+            self.tbl_metadatos.setItem(fila, 2, QTableWidgetItem(valor_limpio))
+
+        # Permanece cerrada con el conteo en la cabecera
+        self.sec_metadatos.cerrar(f"{cantidad} campos extraidos")
 
     def _mostrar_iocs(self, iocs):
-        bloques = []
-        total_iocs = 0
+        filas = []
 
         urls = iocs.get("urls", [])
-        if urls:
-            total_iocs += len(urls)
-            bloques.append("[URLs]")
-            bloques.extend([f"  * {u}" for u in urls])
+        for u in urls:
+            filas.append(("URL", u))
 
         ips = iocs.get("ips", [])
-        if ips:
-            total_iocs += len(ips)
-            bloques.append("\n[Direcciones IP]")
-            bloques.extend([f"  * {ip}" for ip in ips])
+        for ip in ips:
+            filas.append(("Direccion IP", ip))
 
         dominios = iocs.get("dominios", [])
-        if dominios:
-            total_iocs += len(dominios)
-            bloques.append("\n[Dominios]")
-            bloques.extend([f"  * {d}" for d in dominios])
+        for d in dominios:
+            filas.append(("Dominio", d))
 
         comandos = iocs.get("comandos", [])
-        if comandos:
-            total_iocs += len(comandos)
-            bloques.append("\n[Comandos y Scripts]")
-            bloques.extend([f"  * {c}" for c in comandos])
+        for c in comandos:
+            filas.append(("Comando / Script", c))
 
         hashes = iocs.get("hashes", {})
-        if hashes:
-            bloques.append("\n[Hashes]")
-            for alg, lista in hashes.items():
-                total_iocs += len(lista)
-                for h in lista:
-                    bloques.append(f"  * {alg.upper()}: {h}")
+        for alg, lista in hashes.items():
+            for h in lista:
+                filas.append((f"Hash {alg.upper()}", h))
 
-        if bloques:
-            self.txt_iocs.setText("\n".join(bloques))
-            self.sec_iocs.abrir(f"{total_iocs} detectados")
-        else:
-            self.txt_iocs.setText("No se identificaron patrones de IOCs en la muestra.")
-            self.sec_iocs.abrir("0 detectados")
+        total_iocs = len(filas)
+        self.tbl_iocs.setRowCount(total_iocs)
+
+        for idx, (cat, val) in enumerate(filas):
+            item_cat = QTableWidgetItem(cat)
+            item_cat.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.tbl_iocs.setItem(idx, 0, item_cat)
+            self.tbl_iocs.setItem(idx, 1, QTableWidgetItem(str(val)))
+
+        # Permanece cerrada con el conteo en la cabecera
+        self.sec_iocs.cerrar(f"{total_iocs} detectados")
 
     def _mostrar_yara(self, yara_res):
         total = yara_res.get("total_coincidencias", 0)
@@ -733,10 +841,10 @@ class MainView(QMainWindow):
 
         if bloques:
             self.txt_yara.setText("\n".join(bloques))
-            self.sec_yara.abrir(f"{total} regla activada" if total == 1 else f"{total} reglas activadas")
+            self.sec_yara.cerrar(f"{total} regla activada" if total == 1 else f"{total} reglas activadas")
         else:
             self.txt_yara.setText("Sin coincidencias en el motor de reglas YARA.")
-            self.sec_yara.abrir("0 reglas")
+            self.sec_yara.cerrar("0 reglas")
 
     def _mostrar_mitre(self, mitre_list):
         cantidad = len(mitre_list)
@@ -757,91 +865,20 @@ class MainView(QMainWindow):
 
         if bloques:
             self.txt_mitre.setText("\n".join(bloques))
-            self.sec_mitre.abrir(f"{cantidad} tecnicas mapeadas")
+            self.sec_mitre.cerrar(f"{cantidad} tecnicas mapeadas")
         else:
             self.txt_mitre.setText("No se correlacionaron tecnicas de la matriz MITRE ATT&CK.")
-            self.sec_mitre.abrir("0 tecnicas")
-
-    def _mostrar_cid(self, r, datos_completos):
-        t = CONFIG_TEMA[self.tema_actual]
-        
-        # Extraccion limpia de valores evitando imprimir diccionarios crudos
-        c_dict = r.get("confidencialidad", {})
-        i_dict = r.get("integridad", {})
-        d_dict = r.get("disponibilidad", {})
-
-        c_nivel = c_dict.get("nivel", "Bajo") if isinstance(c_dict, dict) else str(c_dict)
-        i_nivel = i_dict.get("nivel", "Bajo") if isinstance(i_dict, dict) else str(i_dict)
-        d_nivel = d_dict.get("nivel", "Bajo") if isinstance(d_dict, dict) else str(d_dict)
-
-        c_motivo = c_dict.get("motivos", [""])[0] if isinstance(c_dict, dict) and c_dict.get("motivos") else ""
-        i_motivo = i_dict.get("motivos", [""])[0] if isinstance(i_dict, dict) and i_dict.get("motivos") else ""
-        d_motivo = d_dict.get("motivos", [""])[0] if isinstance(d_dict, dict) and d_dict.get("motivos") else ""
-
-        # Actualizacion de las 3 tarjetas modulares
-        self.card_conf.actualizar(c_nivel, c_motivo, self.tema_actual)
-        self.card_inte.actualizar(i_nivel, i_motivo, self.tema_actual)
-        self.card_disp.actualizar(d_nivel, d_motivo, self.tema_actual)
-
-        # Calculo ponderado de puntuacion de 0 a 10
-        escala = {"Critico": 3.4, "Crítico": 3.4, "Alto": 3.0, "Medio": 1.8, "Bajo": 0.5, "Normal": 0.0}
-        score_10 = escala.get(c_nivel.capitalize(), 0.5) + escala.get(i_nivel.capitalize(), 0.5) + escala.get(d_nivel.capitalize(), 0.5)
-        score_10 = min(round(score_10, 1), 10.0)
-        porcentaje_barra = int(score_10 * 10)
-
-        # Conteo total de indicadores encontrados en la muestra
-        total_indicadores = 0
-        iocs = datos_completos.get("ioc", {})
-        if isinstance(iocs, dict):
-            total_indicadores += len(iocs.get("urls", [])) + len(iocs.get("ips", [])) + len(iocs.get("dominios", [])) + len(iocs.get("comandos", []))
-            for hlist in iocs.get("hashes", {}).values():
-                total_indicadores += len(hlist)
-        yara = datos_completos.get("yara", {})
-        if isinstance(yara, dict):
-            total_indicadores += yara.get("total_coincidencias", 0)
-
-        self.lbl_puntuacion_amenaza.setText(f"Puntuacion de Riesgo: {score_10} / 10")
-        self.bar_riesgo_general.setValue(porcentaje_barra)
-        self.lbl_conteo_indicadores.setText(f"Indicadores encontrados: {total_indicadores}")
-
-        # Determinacion del badge de estado general
-        if score_10 >= 6.0:
-            color_badge = t["alerta_rojo"]
-            fondo_badge = t["fondo_rojo_alerta"]
-            texto_badge = "RIESGO ALTO (Contenido hostil detectado)"
-        elif score_10 >= 3.5:
-            color_badge = t["alerta_ambar"]
-            fondo_badge = t["fondo_ambar_alerta"]
-            texto_badge = "RIESGO MEDIO (Anomalias bajo observacion)"
-        else:
-            color_badge = t["alerta_verde"]
-            fondo_badge = t["fondo_verde_alerta"]
-            texto_badge = "ESTADO LIMPIO (Firma integra)"
-
-        self.lbl_badge_riesgo.setText(texto_badge)
-        self.lbl_badge_riesgo.setStyleSheet(f"""
-            QLabel#lbl_badge_riesgo {{
-                background-color: {fondo_badge};
-                color: {color_badge};
-                border: 1px solid {color_badge};
-                border-radius: {t['borde_radio']};
-                font-weight: 800;
-                font-size: 11px;
-                padding: 4px 8px;
-            }}
-        """)
-
-        self.sec_cid.abrir(f"Score {score_10}/10")
+            self.sec_mitre.cerrar("0 tecnicas")
 
     def _mostrar_recomendaciones(self, recom):
         cantidad = len(recom)
         if recom:
             lineas = [f"{idx + 1}. {texto}" for idx, texto in enumerate(recom)]
             self.txt_recomendaciones.setText("\n\n".join(lineas))
-            self.sec_recomendaciones.abrir(f"{cantidad} acciones")
+            self.sec_recomendaciones.cerrar(f"{cantidad} acciones")
         else:
             self.txt_recomendaciones.setText("No se requieren acciones de mitigacion inmediatas.")
-            self.sec_recomendaciones.abrir("0 acciones")
+            self.sec_recomendaciones.cerrar("0 acciones")
 
     def alternar_tema(self):
         if self.tema_actual == "oscuro":
