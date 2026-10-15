@@ -5,6 +5,7 @@ from controller.seguridad import Seguridad
 from controller.Mdata import MdataController
 from views.main_view import MainView, LoginDialog, ConfigDialog
 from PyQt6.QtWidgets import QDialog
+from datetime import datetime, timezone
 
 class MainController:
     """Controlador principal que conecta el modelo de base de datos con la vista."""
@@ -81,7 +82,6 @@ class MainController:
         diag.exec()
 
     def ejecutar_analisis_forense(self, ruta_archivo):
-        """Invoca el motor C, evalua firmas binarias y genera el dictamen."""
         # 1. Obtener las reglas de metadatos desde la BD (por defecto PDF formato_id=1)
         reglas = self.db.obtener_reglas_formato(formato_id=1)
         res_extraccion = self.mdata.analizar_con_parametros_bd(ruta_archivo, reglas)
@@ -94,82 +94,40 @@ class MainController:
         ext_declarada = os.path.splitext(nombre_fichero)[1].lower()
 
         # 2. Heuristica de discrepancia entre extension declarada y cabecera binaria real
-        es_anomalia = False
-        ext_real = ext_declarada
-        mitre_data = {}
+        
         riesgo_data = {}
         recomendacion_txt = ""
-
-        # Verificacion basica de firma binaria
-        cabecera_hex = contenido_hex[:20].upper().replace(" ", "")
         
-        if "4D5A" in cabecera_hex:  # Firma MZ de ejecutable PE
-            ext_real = ".exe"
-        elif "25504446" in cabecera_hex:  # Firma %PDF
-            ext_real = ".pdf"
-        elif "89504E47" in cabecera_hex:  # Firma PNG
-            ext_real = ".png"
-
-        if ext_declarada != ext_real and ext_real != "":
-            es_anomalia = True
-            mitre_data = {
-                "es_anomalia": True,
-                "estado": "ANOMALIA CRITICA: DISCREPANCIA ESTRUCTURAL",
-                "tactica": "Defense Evasion (TA0005)",
-                "tecnica": "T1036.001 - Masquerading: Extension Discrepancy",
-                "descripcion": f"El archivo simula ser {ext_declarada}, pero los Magic Bytes demuestran que es un archivo {ext_real}."
-            }
-            riesgo_data = {
-                "confidencialidad": "Medio (Posible exfiltracion)",
-                "integridad": "Critico (Cabecera falsificada)",
-                "disponibilidad": "Bajo",
-                "score": 85
-            }
-            recomendacion_txt = (
-                "1. Aislar inmediatamente la muestra en entorno de sandbox.\n"
-                "2. Bloquear la ejecucion directa; el archivo esta enmascarando su tipo real.\n"
-                "3. Registrar el hash SHA-256 en la lista negra perimetral."
-            )
-        else:
-            mitre_data = {
-                "es_anomalia": False,
-                "estado": "ESTRUCTURA INTEGRA",
-                "tactica": "Ninguna detectada",
-                "tecnica": "Sin patrones maliciosos conocidos",
-                "descripcion": "La firma de cabecera binaria coincide de forma consistente con la extension del fichero."
-            }
-            riesgo_data = {
-                "confidencialidad": "Bajo",
-                "integridad": "Integro",
-                "disponibilidad": "Normal",
-                "score": 10
-            }
-            recomendacion_txt = (
-                "1. La cabecera es valida y coherente.\n"
-                "2. El archivo puede procesarse bajo los protocolos habituales de la organizacion."
-            )
+        analisis_cabecera = self.mdata.validar_cabecera_archivo(contenido_hex[:20], ext_declarada)
+        iocs_extraidos = self.mdata.extraer_iocs(contenido_text)
+        resultados_yara = self.mdata.analisis_yara(ruta_archivo)
+        mitre_data = self.mdata.correlacionar_todo_con_mitre(iocs_extraidos, resultados_yara)
+        evaluacion_riesgo_cid = self.mdata.evaluar_cid(mitre_data.get("correlaciones", []))
+        plan_mitigacion = self.mdata.generar_mitigaciones(mitre_data.get("correlaciones", []))
 
         # 3. Guardar el reporte en la base de datos cifrada
         reporte_db = {
             "archivo": nombre_fichero,
-            "analisis_cabecera": {
-                "extension_declarada": ext_declarada,
-                "extension_real": ext_real,
-                "anomalia_detectada": es_anomalia
-            },
-            "mitre_attck": {
-                "tactica": mitre_data["tactica"],
-                "tecnica": mitre_data["tecnica"],
-                "descripcion": mitre_data["descripcion"]
-            }
+            "timestamp_analisis": datetime.now(timezone.utc).isoformat(),
+            "modulo_1_2_metadatos": metadatos_dict,       # Resultado de tu función de metadatos/hash
+            "analisis_cabecera": analisis_cabecera,       # Resultado de validar_cabecera_archivo()
+            "modulo_3a_ioc": iocs_extraidos,             # Resultado de extraer_iocs_desde_hex()
+            "modulo_3b_yara": resultados_yara,            # Resultado de ejecutar_modulo_yara()
+            "modulo_4_mitre_attck": mitre_data["correlaciones"], # De tu función unificada
+            "modulo_5_evaluacion_cid": evaluacion_riesgo_cid,          # Resultado de evaluar_cid()
+            "modulo_6_mitigacion": plan_mitigacion                     # Resultado de generar_mitigaciones()
         }
-        self.db.save_report(reporte_db)
-        print(metadatos_dict)
+
+        print(reporte_db)
+
+        # Guardar de forma robusta en la BD
+        # self.db.save_report(reporte_db)
+
         # 4. Enviar datos a la vista para iniciar la aparicion secuencial
         self.vista.ejecutar_proceso_secuencial_interfaz({
-            "hex_dump": contenido_hex[:3000],
-            "bin_stream": contenido_bin[:1500],
-            "text_stream": contenido_text[:1500],            
+            "hex_dump": contenido_hex,
+            "bin_stream": contenido_bin,
+            "text_stream": contenido_text,            
             "mitre": mitre_data,
             "metadatos": metadatos_dict,
             "riesgo": riesgo_data,
