@@ -118,8 +118,6 @@ class MainController:
             "modulo_6_mitigacion": plan_mitigacion                     # Resultado de generar_mitigaciones()
         }
 
-        print(reporte_db)
-
         # Guardar de forma robusta en la BD
         # self.db.save_report(reporte_db)
 

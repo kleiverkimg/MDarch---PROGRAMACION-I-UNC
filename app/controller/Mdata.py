@@ -212,7 +212,7 @@ class MdataController:
         tipo_detectado = None
         for ext, firmas in firmas_conocidas.items():
             for firma in firmas:
-                if firma.replace(" ","").startswith(hex_header):
+                if hex_header.replace(" ","").startswith(firma):
                     tipo_detectado = ext
                     break
             if tipo_detectado:
