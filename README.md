@@ -97,20 +97,6 @@ pip install -r requirements.txt
 
 ---
 
-### 4. Compilar el Módulo Extractor en C
-
-El motor de bajo nivel debe compilarse previamente para generar el ejecutable que procesará los *Magic Bytes* y volcados binarios/hexadecimales.
-
-* **Ejemplo de compilación con GCC:**
-```bash
-gcc -O2 src/extractor.c -o app/bin/extractor.exe
-
-```
-
-
-
----
-
 ## 💻 Ejecución de la Aplicación
 
 Para lanzar la interfaz gráfica de **MDArch - SyS**, ejecuta desde el directorio raíz:
