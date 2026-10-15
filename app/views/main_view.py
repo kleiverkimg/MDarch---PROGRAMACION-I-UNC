@@ -21,6 +21,8 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QMessageBox
 )
+
+from PyQt6.QtGui import QMovie
 from PyQt6.QtCore import Qt, QTimer
 
 CONFIG_TEMA = {
@@ -325,6 +327,10 @@ class MainView(QMainWindow):
         self.inicializar_ventana()
         self.construir_interfaz()
         self.aplicar_tema(self.tema_actual)
+        self.lbl_spinner = QLabel(self)
+        self.movie = QMovie("app/assets/Loading_icon.gif")
+        self.lbl_spinner.setMovie(self.movie)
+        self.lbl_spinner.setVisible(False)
 
     def inicializar_ventana(self):
         self.setWindowTitle("MDArch, Analizador Forense y Deteccion de Amenazas")

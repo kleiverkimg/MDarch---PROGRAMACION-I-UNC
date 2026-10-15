@@ -1,25 +1,23 @@
 import os
 import hashlib
+from PyQt6.QtWidgets import QDialog
+from datetime import datetime, timezone
 from model.database import Database
 from controller.seguridad import Seguridad
 from controller.Mdata import MdataController
+from controller.segundo_plano import ForensicWorker
 from views.main_view import MainView, LoginDialog, ConfigDialog
-from PyQt6.QtWidgets import QDialog
-from datetime import datetime, timezone
-
 class MainController:
-    """Controlador principal que conecta el modelo de base de datos con la vista."""
     def __init__(self):
         self.db = Database()
         self.mdata = MdataController()
         self.vista = MainView()
 
         # Vinculacion de callbacks y eventos
-        self.vista.callback_ejecutar_analisis = self.ejecutar_analisis_forense
+        self.vista.callback_ejecutar_analisis = self.disparar_analisis
         self.vista.btn_config.clicked.connect(self.abrir_dialogo_configuracion)
 
     def iniciar(self):
-        """Muestra primero el login. Si las credenciales son validas, abre la consola principal."""
         dialogo_login = LoginDialog(callback_autenticacion=self.autenticar_operador)
         if dialogo_login.exec() == QDialog.DialogCode.Accepted:
             self.vista.show()
@@ -27,7 +25,6 @@ class MainController:
         return False
 
     def autenticar_operador(self, usuario, password):
-        """Valida entradas contra inyecciones y comprueba credenciales en la base de datos cifrada."""
         ok_u, msg_u = Seguridad.validarTexto(usuario, "usuario")
         if not ok_u:
             return False, msg_u
@@ -41,7 +38,6 @@ class MainController:
         return False, "Usuario o contrasena incorrectos."
 
     def registrar_nuevo_operador(self, usuario, password):
-        """Valida y da de alta un nuevo usuario con hash SHA-256."""
         ok_u, msg_u = Seguridad.validarTexto(usuario, "usuario")
         if not ok_u:
             return False, msg_u
@@ -62,7 +58,6 @@ class MainController:
             return False, f"Error al guardar: {str(e)}"
 
     def obtener_historial_logs(self):
-        """Recupera los reportes forenses almacenados en forensic_reports."""
         try:
             conn = self.db.get_connection()
             cursor = conn.cursor()
@@ -81,6 +76,33 @@ class MainController:
         )
         diag.exec()
 
+    def disparar_analisis(self, ruta_archivo):
+        # Opcional: Mostrar un indicador de carga (Spinner / Progress Bar) en la UI
+        self.mostrar_spinner_carga(True)
+        self.vista.btn_analizar.setEnabled(False) # Evitar múltiples clicks
+
+        # Instanciamos el hilo en segundo plano
+        self.worker = ForensicWorker(self, ruta_archivo)
+        
+        # Conectamos la señal de término a una función que actualice la interfaz
+        self.worker.finished.connect(self.manejar_resultados_completos)
+        self.worker.error.connect(self.manejar_error_analisis)
+        
+        # Iniciamos el hilo (esto libera inmediatamente a la ventana principal para que no se congele)
+        self.worker.start()
+
+    def manejar_resultados_completos(self, paquete_datos):
+        self.mostrar_spinner_carga(False)
+        self.vista.btn_analizar.setEnabled(True)
+        
+        # Enviamos los datos consolidados a la interfaz tal como lo hacías antes
+        self.vista.ejecutar_proceso_secuencial_interfaz(paquete_datos)
+
+    def manejar_error_analisis(self, mensaje_error):
+        self.mostrar_spinner_carga(False)
+        self.vista.btn_analizar.setEnabled(True)
+        print(f"[!] Error durante el análisis en segundo plano: {mensaje_error}")
+
     def ejecutar_analisis_forense(self, ruta_archivo):
         # 1. Obtener las reglas de metadatos desde la BD (por defecto PDF formato_id=1)
         reglas = self.db.obtener_reglas_formato(formato_id=1)
@@ -94,10 +116,6 @@ class MainController:
         ext_declarada = os.path.splitext(nombre_fichero)[1].lower()
 
         # 2. Heuristica de discrepancia entre extension declarada y cabecera binaria real
-        
-        riesgo_data = {}
-        recomendacion_txt = ""
-        
         analisis_cabecera = self.mdata.validar_cabecera_archivo(contenido_hex[:20], ext_declarada)
         iocs_extraidos = self.mdata.extraer_iocs(contenido_text)
         resultados_yara = self.mdata.analisis_yara(ruta_archivo)
@@ -134,3 +152,15 @@ class MainController:
              "riesgo": evaluacion_riesgo_cid,
              "recomendaciones": plan_mitigacion
         })
+
+    def mostrar_spinner_carga(self, mostrar: bool):
+        if mostrar:
+            self.vista.lbl_spinner.setVisible(True)
+            self.vista.movie.start()  # Empieza a reproducir la animación del GIF
+            self.vista.btn_analizar.setEnabled(False)
+        else:
+            self.vista.movie.stop()   # Detiene la animación
+            self.vista.lbl_spinner.setVisible(False)
+            self.vista.btn_analizar.setEnabled(True)
+
+
