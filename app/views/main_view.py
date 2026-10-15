@@ -1,4 +1,5 @@
 import sys
+import os
 import re
 from PyQt6.QtWidgets import (
     QApplication,
@@ -21,9 +22,8 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QMessageBox
 )
-
-from PyQt6.QtGui import QMovie
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QMovie
 
 CONFIG_TEMA = {
     "oscuro": {
@@ -47,6 +47,8 @@ CONFIG_TEMA = {
         "fondo_verde_alerta": "#0f231a",
         "alerta_neutra": "#8b949e",
         "fondo_neutro_alerta": "#161b22",
+        "fondo_spinner": "#132338",
+        "borde_spinner": "#0284c7",
         "fuente_interfaz": "Segoe UI",
         "fuente_codigo": "Consolas",
         "tamano_base": "13px",
@@ -75,6 +77,8 @@ CONFIG_TEMA = {
         "fondo_verde_alerta": "#dafbe1",
         "alerta_neutra": "#656d76",
         "fondo_neutro_alerta": "#f6f8fa",
+        "fondo_spinner": "#ddf4ff",
+        "borde_spinner": "#54aeff",
         "fuente_interfaz": "Segoe UI",
         "fuente_codigo": "Consolas",
         "tamano_base": "13px",
@@ -83,6 +87,42 @@ CONFIG_TEMA = {
         "tamano_etiquetas": "11px"
     }
 }
+
+
+class ControladorCargaForense(QMovie):
+    """
+    Controlador compatible con QMovie que proporciona animacion de estados 
+    forenses dinamicamente si no existe un archivo GIF fisico en el sistema.
+    """
+    def __init__(self, label_destino, parent=None):
+        super().__init__(parent)
+        self.label_destino = label_destino
+        self.timer_rotativo = QTimer()
+        self.timer_rotativo.timeout.connect(self._avanzar_frame)
+        self.fases = [
+            "⠋ [Hilo Segundo Plano] Extrayendo cabeceras binarias y offsets en motor C...",
+            "⠙ [Hilo Segundo Plano] Búsqueda de tokens y verificación de estructuras...",
+            "⠹ [Hilo Segundo Plano] Rastreo heurístico de IOCs y reglas YARA...",
+            "⠸ [Hilo Segundo Plano] Correlacionando técnicas MITRE y evaluando Tríada CID...",
+            "⠼ [Hilo Segundo Plano] Consolidando expediente forense..."
+        ]
+        self.indice = 0
+
+    def start(self):
+        super().start()
+        self.indice = 0
+        if self.label_destino:
+            self.label_destino.setText(self.fases[0])
+        self.timer_rotativo.start(320)
+
+    def stop(self):
+        super().stop()
+        self.timer_rotativo.stop()
+
+    def _avanzar_frame(self):
+        self.indice = (self.indice + 1) % len(self.fases)
+        if self.label_destino:
+            self.label_destino.setText(self.fases[self.indice])
 
 
 class SeccionDesplegable(QFrame):
@@ -326,11 +366,8 @@ class MainView(QMainWindow):
         self.callback_ejecutar_analisis = None
         self.inicializar_ventana()
         self.construir_interfaz()
+        self.inicializar_spinner_carga()
         self.aplicar_tema(self.tema_actual)
-        self.lbl_spinner = QLabel(self)
-        self.movie = QMovie("app/assets/Loading_icon.gif")
-        self.lbl_spinner.setMovie(self.movie)
-        self.lbl_spinner.setVisible(False)
 
     def inicializar_ventana(self):
         self.setWindowTitle("MDArch, Analizador Forense y Deteccion de Amenazas")
@@ -375,11 +412,11 @@ class MainView(QMainWindow):
 
         self.layout_raiz.addLayout(self.layout_barra_superior)
 
-        # Area principal
+        # Area principal dividida
         self.layout_cuerpo = QHBoxLayout()
         self.layout_cuerpo.setSpacing(16)
 
-        # Panel Izquierdo: Carga y Volcados
+        # Panel Izquierdo
         self.panel_izquierdo = QFrame(self)
         self.panel_izquierdo.setObjectName("panel_contenedor")
         self.layout_panel_izq = QVBoxLayout(self.panel_izquierdo)
@@ -387,7 +424,7 @@ class MainView(QMainWindow):
         self.layout_panel_izq.setSpacing(10)
         self.construir_panel_izquierdo()
 
-        # Panel Derecho: Analisis con Scroll
+        # Panel Derecho
         self.panel_derecho = QFrame(self)
         self.panel_derecho.setObjectName("panel_contenedor")
         self.layout_panel_der = QVBoxLayout(self.panel_derecho)
@@ -450,6 +487,13 @@ class MainView(QMainWindow):
         lbl_der_titulo.setObjectName("lbl_seccion_titulo")
         self.layout_panel_der.addWidget(lbl_der_titulo)
 
+        # Banner de carga en segundo plano requerido por el controlador
+        self.lbl_spinner = QLabel("⏳ Analizando binario en segundo plano...", self)
+        self.lbl_spinner.setObjectName("lbl_spinner")
+        self.lbl_spinner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_spinner.setVisible(False)
+        self.layout_panel_der.addWidget(self.lbl_spinner)
+
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setObjectName("scroll_forense")
@@ -477,7 +521,7 @@ class MainView(QMainWindow):
         self.sec_cabecera = SeccionDesplegable("1. Validacion de Cabecera y Firmas", self.card_cabecera, abierto_inicial=True)
         self.layout_acordeones.addWidget(self.sec_cabecera)
 
-        # 2. Triada CID y Nivel de Riesgo (Reubicado al 2do puesto, Abierto por defecto)
+        # 2. Triada CID y Nivel de Riesgo (2do puesto, Abierto por defecto)
         self.card_cid = QFrame()
         self.card_cid.setObjectName("card_cid")
         layout_cid_principal = QVBoxLayout(self.card_cid)
@@ -599,6 +643,23 @@ class MainView(QMainWindow):
         self.layout_acordeones.addStretch()
         scroll.setWidget(contenedor_scroll)
         self.layout_panel_der.addWidget(scroll)
+
+    def inicializar_spinner_carga(self):
+        """Inicializa la propiedad self.movie requerida por MainController."""
+        base_dir = os.path.dirname(__file__)
+        posibles_gifs = [
+            os.path.join(base_dir, "spinner.gif"),
+            os.path.join(base_dir, "loading.gif"),
+            os.path.join(base_dir, "cargando.gif")
+        ]
+        ruta_gif = next((g for g in posibles_gifs if os.path.exists(g)), None)
+
+        if ruta_gif:
+            self.movie = QMovie(ruta_gif)
+            self.lbl_spinner.setMovie(self.movie)
+        else:
+            # Respaldo automático sin necesidad de archivos GIF externos
+            self.movie = ControladorCargaForense(self.lbl_spinner, self)
 
     def abrir_dialogo_archivo(self):
         filtros = "Archivos Soportados (*.pdf *.exe *.png);;Todos los archivos (*.*)"
@@ -723,7 +784,6 @@ class MainView(QMainWindow):
             }}
         """)
 
-        # La seccion CID permanece abierta tras el analisis
         self.sec_cid.abrir(f"Score {score_10}/10")
 
     def _sanitizar_metadato(self, clave, valor):
@@ -749,18 +809,14 @@ class MainView(QMainWindow):
             propiedad = mapeo_propiedades[propiedad]
 
         val_limpio = str(valor)
-
-        # Limpiar secuencias de bytes nulos tipicas de UTF-16
         val_limpio = val_limpio.replace("x00", "").replace("\x00", "").replace("□", "").strip()
 
-        # Extraer contenido util de etiquetas RDF o eliminar etiquetas XML residuales
         match_li = re.search(r"<rdf:li>(.*?)</rdf:li>", val_limpio, re.DOTALL)
         if match_li:
             val_limpio = match_li.group(1).strip()
         else:
             val_limpio = re.sub(r"<[^>]+>", "", val_limpio).strip()
 
-        # Limpiar prefijos de fechas PDF tipo D:
         if val_limpio.startswith("D:"):
             val_limpio = val_limpio[2:].strip()
 
@@ -779,7 +835,6 @@ class MainView(QMainWindow):
             self.tbl_metadatos.setItem(fila, 1, QTableWidgetItem(propiedad))
             self.tbl_metadatos.setItem(fila, 2, QTableWidgetItem(valor_limpio))
 
-        # Permanece cerrada con el conteo en la cabecera
         self.sec_metadatos.cerrar(f"{cantidad} campos extraidos")
 
     def _mostrar_iocs(self, iocs):
@@ -815,7 +870,6 @@ class MainView(QMainWindow):
             self.tbl_iocs.setItem(idx, 0, item_cat)
             self.tbl_iocs.setItem(idx, 1, QTableWidgetItem(str(val)))
 
-        # Permanece cerrada con el conteo en la cabecera
         self.sec_iocs.cerrar(f"{total_iocs} detectados")
 
     def _mostrar_yara(self, yara_res):
@@ -921,6 +975,16 @@ class MainView(QMainWindow):
                 font-weight: 700;
                 color: {t['texto_secundario']};
                 letter-spacing: 1px;
+            }}
+            QLabel#lbl_spinner {{
+                background-color: {t['fondo_spinner']};
+                color: {t['color_acento']};
+                border: 1px solid {t['borde_spinner']};
+                border-radius: {t['borde_radio']};
+                padding: 10px 14px;
+                font-size: 12px;
+                font-weight: 700;
+                font-family: '{t['fuente_codigo']}', monospace;
             }}
             QFrame#panel_contenedor {{
                 background-color: {t['fondo_panel']};
