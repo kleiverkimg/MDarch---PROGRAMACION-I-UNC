@@ -1044,6 +1044,11 @@ class MainView(QMainWindow):
             QPushButton#btn_accion_primaria:hover {{
                 background-color: {t['color_acento_hover']};
             }}
+            
+            QPushButton#btn_accion_primaria:disabled {{
+                background-color: #b0bec5; /* Color gris cuando esté deshabilitado */
+                color: #e0e0e0;           /* Texto más tenue opcional */
+            }}
             QTabWidget::pane {{
                 border: 1px solid {t['borde_panel']};
                 background-color: {t['fondo_input']};

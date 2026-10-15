@@ -76,7 +76,7 @@ class MainController:
         )
         diag.exec()
 
-    def disparar_analisis(self, ruta_archivo):
+    def disparar_analisis(self, ruta_archivo):        
         # Opcional: Mostrar un indicador de carga (Spinner / Progress Bar) en la UI
         self.mostrar_spinner_carga(True)
         self.vista.btn_analizar.setEnabled(False) # Evitar múltiples clicks
