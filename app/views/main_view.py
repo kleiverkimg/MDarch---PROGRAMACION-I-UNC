@@ -363,11 +363,11 @@ class MainView(QMainWindow):
     def __init__(self):
         super().__init__()
         self.tema_actual = "oscuro"
-        self.callback_ejecutar_analisis = None
+        self.callback_ejecutar_analisis = None        
         self.inicializar_ventana()
         self.construir_interfaz()
-        self.inicializar_spinner_carga()
         self.aplicar_tema(self.tema_actual)
+        self.inicializar_spinner_carga()
 
     def inicializar_ventana(self):
         self.setWindowTitle("MDArch, Analizador Forense y Deteccion de Amenazas")
@@ -646,20 +646,33 @@ class MainView(QMainWindow):
 
     def inicializar_spinner_carga(self):
         """Inicializa la propiedad self.movie requerida por MainController."""
-        base_dir = os.path.dirname(__file__)
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        print(base_dir)
         posibles_gifs = [
-            os.path.join(base_dir, "spinner.gif"),
-            os.path.join(base_dir, "loading.gif"),
-            os.path.join(base_dir, "cargando.gif")
+            os.path.join(base_dir, "assets\\spinner.gif"),
+            os.path.join(base_dir, "assets\\loading.gif"),
+            os.path.join(base_dir, "assets\\cargando.gif")
         ]
+
         ruta_gif = next((g for g in posibles_gifs if os.path.exists(g)), None)
+        
+        self.lbl_spinner = QLabel("Analizando archivo...", self)
 
         if ruta_gif:
             self.movie = QMovie(ruta_gif)
             self.lbl_spinner.setMovie(self.movie)
+            self.lbl_spinner.setGeometry(self.rect())
+            self.lbl_spinner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.lbl_spinner.setVisible(False)
+            self.lbl_spinner.setStyleSheet("""
+                QLabel {
+                    background-color: rgba(15, 23, 42, 160); 
+                }
+            """)
         else:
             # Respaldo automático sin necesidad de archivos GIF externos
             self.movie = ControladorCargaForense(self.lbl_spinner, self)
+            
 
     def abrir_dialogo_archivo(self):
         filtros = "Archivos Soportados (*.pdf *.exe *.png);;Todos los archivos (*.*)"

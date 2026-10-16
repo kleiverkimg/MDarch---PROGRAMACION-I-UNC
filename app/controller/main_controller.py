@@ -103,58 +103,9 @@ class MainController:
         self.vista.btn_analizar.setEnabled(True)
         print(f"[!] Error durante el análisis en segundo plano: {mensaje_error}")
 
-    def ejecutar_analisis_forense(self, ruta_archivo):
-        # 1. Obtener las reglas de metadatos desde la BD (por defecto PDF formato_id=1)
-        reglas = self.db.obtener_reglas_formato(formato_id=1)
-        res_extraccion = self.mdata.analizar_con_parametros_bd(ruta_archivo, reglas)
-
-        if not res_extraccion.get("exito"):
-            return
-
-        metadatos_dict, contenido_text, contenido_hex, contenido_bin = res_extraccion["resultados"]
-        nombre_fichero = os.path.basename(ruta_archivo)
-        ext_declarada = os.path.splitext(nombre_fichero)[1].lower()
-
-        # 2. Heuristica de discrepancia entre extension declarada y cabecera binaria real
-        analisis_cabecera = self.mdata.validar_cabecera_archivo(contenido_hex[:20], ext_declarada)
-        iocs_extraidos = self.mdata.extraer_iocs(contenido_text)
-        resultados_yara = self.mdata.analisis_yara(ruta_archivo)
-        mitre_data = self.mdata.correlacionar_todo_con_mitre(iocs_extraidos, resultados_yara)
-        evaluacion_riesgo_cid = self.mdata.evaluar_cid(mitre_data.get("correlaciones", []))
-        plan_mitigacion = self.mdata.generar_mitigaciones(mitre_data.get("correlaciones", []))
-
-        # 3. Guardar el reporte en la base de datos cifrada
-        reporte_db = {
-            "archivo": nombre_fichero,
-            "timestamp_analisis": datetime.now(timezone.utc).isoformat(),
-            "modulo_1_2_metadatos": metadatos_dict,       # Resultado de tu función de metadatos/hash
-            "analisis_cabecera": analisis_cabecera,       # Resultado de validar_cabecera_archivo()
-            "modulo_3a_ioc": iocs_extraidos,             # Resultado de extraer_iocs_desde_hex()
-            "modulo_3b_yara": resultados_yara,            # Resultado de ejecutar_modulo_yara()
-            "modulo_4_mitre_attck": mitre_data["correlaciones"], # De tu función unificada
-            "modulo_5_evaluacion_cid": evaluacion_riesgo_cid,          # Resultado de evaluar_cid()
-            "modulo_6_mitigacion": plan_mitigacion                     # Resultado de generar_mitigaciones()
-        }
-
-        # Guardar de forma robusta en la BD
-        # self.db.save_report(reporte_db)
-
-        # 4. Enviar datos a la vista para iniciar la aparicion secuencial
-        self.vista.ejecutar_proceso_secuencial_interfaz({
-             "hex_dump": contenido_hex,
-             "bin_stream": contenido_bin,
-             "text_stream": contenido_text,  
-             "cabecera": analisis_cabecera,
-             "ioc": iocs_extraidos,
-             "yara": resultados_yara,
-             "mitre": mitre_data["correlaciones"],
-             "metadatos": metadatos_dict,
-             "riesgo": evaluacion_riesgo_cid,
-             "recomendaciones": plan_mitigacion
-        })
-
     def mostrar_spinner_carga(self, mostrar: bool):
         if mostrar:
+            self.vista.lbl_spinner.raise_()
             self.vista.lbl_spinner.setVisible(True)
             self.vista.movie.start()  # Empieza a reproducir la animación del GIF
             self.vista.btn_analizar.setEnabled(False)
