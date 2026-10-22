@@ -54,25 +54,25 @@ class Database:
 
         # 1. Tabla de Formatos (Identificación principal por Magic Bytes)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS formatos (
+            CREATE TABLE IF NOT EXISTS formats (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,          -- Ej: 'PDF', 'JPEG', 'PNG'
+                name TEXT NOT NULL,          -- Ej: 'PDF', 'JPEG', 'PNG'
                 extension TEXT NOT NULL,       -- Ej: '.pdf', '.jpg'
                 magic_bytes TEXT NOT NULL,     -- Ej: '255044462D' para %PDF-
-                descripcion TEXT               -- Detalle opcional del formato
+                description TEXT               -- Detalle opcional del formato
             )
         """)
 
         # 2. Tabla de Parámetros y Estrategias de Búsqueda (Soporta múltiples formas por formato)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS parametros_extraccion (
+            CREATE TABLE IF NOT EXISTS extraction_parameters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                formato_id INTEGER NOT NULL,   -- Relación con la tabla formatos
-                forma_nombre TEXT NOT NULL,    -- Ej: 'PDF_Diccionario_Info' o 'PDF_XMP_Metadata'
-                estrategia_busqueda TEXT NOT NULL, -- Ej: 'BUSQUEDA_TOKENS', 'PARSE_XML', 'EXIF_IFD'
-                patron_busqueda TEXT NOT NULL, -- Ej: '/Author (' o '<dc:creator>'
-                longitud_max INTEGER DEFAULT 50, -- Cuántos bytes leer tras hallar el patrón
-                FOREIGN KEY (formato_id) REFERENCES formatos(id)
+                format_id INTEGER NOT NULL,   -- Relación con la tabla formatos
+                format_name TEXT NOT NULL,    -- Ej: 'PDF_Diccionario_Info' o 'PDF_XMP_Metadata'
+                search_strategy TEXT NOT NULL, -- Ej: 'BUSQUEDA_TOKENS', 'PARSE_XML', 'EXIF_IFD'
+                search_pattern TEXT NOT NULL, -- Ej: '/Author (' o '<dc:creator>'
+                max_lenght INTEGER DEFAULT 50, -- Cuántos bytes leer tras hallar el patrón
+                FOREIGN KEY (format_id) REFERENCES formats(id)
             )
         """)
 
@@ -80,13 +80,13 @@ class Database:
 
         # Insertar Formato PDF
         cursor.execute("""
-            INSERT OR IGNORE INTO formatos (id, nombre, extension, magic_bytes, descripcion)
+            INSERT OR IGNORE INTO formats (id, name, extension, magic_bytes, description)
             VALUES (1, 'PDF', '.pdf', '255044462D', 'Documento Portátil de Adobe (Comienza con %PDF-)');
         """)
 
         # Insertar Formato JPEG (para cuando lo implementes más adelante)
         cursor.execute("""
-            INSERT OR IGNORE INTO formatos (id, nombre, extension, magic_bytes, descripcion)
+            INSERT OR IGNORE INTO formats (id, name, extension, magic_bytes, description)
             VALUES (2, 'JPEG', '.jpg', 'FFD8', 'Imagen JPEG (Comienza con los Magic Bytes FFD8)');
         """)
 
@@ -99,7 +99,7 @@ class Database:
             (1, 'PDF_Diccionario_Info', 'BUSQUEDA_TOKENS', '/CreationDate', 30)
         ]
         cursor.executemany("""
-            INSERT INTO parametros_extraccion (formato_id, forma_nombre, estrategia_busqueda, patron_busqueda, longitud_max)
+            INSERT INTO extraction_parameters (format_id, format_name, search_strategy, search_pattern, max_length)
             VALUES (?, ?, ?, ?, ?)
         """, parametros_pdf_info)
 
@@ -110,7 +110,7 @@ class Database:
             (1, 'PDF_XMP_Metadata', 'PARSE_XML_TAG', '<xmp:CreateDate>', 50)
         ]
         cursor.executemany("""
-            INSERT INTO parametros_extraccion (formato_id, forma_nombre, estrategia_busqueda, patron_busqueda, longitud_max)
+            INSERT INTO extraction_parameters (format_id, format_name, search_strategy, search_pattern, max_length)
             VALUES (?, ?, ?, ?, ?)
         """, parametros_pdf_xmp)
         # Insertar usuario administrador por defecto (con contraseña protegida por hash)
@@ -156,14 +156,14 @@ class Database:
         conn.commit()
         conn.close()
 
-    def obtener_reglas_formato(self, formato_id):
+    def obtener_reglas_formato(self, format_id):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT forma_nombre, estrategia_busqueda, patron_busqueda, longitud_max 
-            FROM parametros_extraccion 
-            WHERE formato_id = ?
-        """, (formato_id,))
+            SELECT format_name, search_strategy, search_pattern, max_length 
+            FROM extraction_parameters 
+            WHERE format_id = ?
+        """, (format_id,))
         reglas = cursor.fetchall()
         conn.close()
         return reglas
