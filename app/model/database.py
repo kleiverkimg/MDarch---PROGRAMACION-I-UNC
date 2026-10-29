@@ -37,6 +37,29 @@ class Database:
             )
         """)
 
+        # Tabla de Logs (Actividad del sistema / Relacionada con Usuarios)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_register TEXT NOT NULL,
+                date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                description TEXT,
+                id_user INTEGER,
+                FOREIGN KEY (id_user) REFERENCES users(id)
+            )
+        """)
+
+        # Tabla de Catálogo MITRE (Técnicas y Tácticas de Ataque)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mittre (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tech_id TEXT UNIQUE NOT NULL,
+                level TEXT,
+                purpose TEXT,
+                recomendation TEXT
+            )
+        """)
+
         # Tabla de Historial Forense
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS forensic_reports (
@@ -90,6 +113,16 @@ class Database:
             VALUES (2, 'JPEG', '.jpg', 'FFD8', 'Imagen JPEG (Comienza con los Magic Bytes FFD8)');
         """)
 
+        # Semillas iniciales para la tabla MITTRE
+        mittre_seeds = [
+            ('T1036', 'Alto', 'Ocultamiento de extensión o identidad de archivos', 'Validar siempre los Magic Bytes en lugar de confiar en la extensión del usuario.'),
+            ('T1027', 'Medio', 'Ofuscación de archivos o información interna', 'Realizar escaneo de patrones y desofuscar metadatos antes de procesar.')
+        ]
+        cursor.executemany("""
+            INSERT OR IGNORE INTO mittre (tech_id, level, purpose, recomendation)
+            VALUES (?, ?, ?, ?)
+        """, mittre_seeds)
+
         # Insertar Parámetros para la Forma 1 del PDF: Diccionario /Info clásico (Título, Autor, Creador, Fechas)
         parametros_pdf_info = [
             (1, 'PDF_Diccionario_Info', 'BUSQUEDA_TOKENS', '/Title', 60),
@@ -113,6 +146,7 @@ class Database:
             INSERT INTO extraction_parameters (format_id, format_name, search_strategy, search_pattern, max_length)
             VALUES (?, ?, ?, ?, ?)
         """, parametros_pdf_xmp)
+        
         # Insertar usuario administrador por defecto (con contraseña protegida por hash)
         # Aquí puedes usar hashlib.sha256 en lugar de texto plano
         import hashlib
