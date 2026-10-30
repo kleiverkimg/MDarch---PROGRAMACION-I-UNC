@@ -94,7 +94,7 @@ class Database:
                 format_name TEXT NOT NULL,    -- Ej: 'PDF_Diccionario_Info' o 'PDF_XMP_Metadata'
                 search_strategy TEXT NOT NULL, -- Ej: 'BUSQUEDA_TOKENS', 'PARSE_XML', 'EXIF_IFD'
                 search_pattern TEXT NOT NULL, -- Ej: '/Author (' o '<dc:creator>'
-                max_lenght INTEGER DEFAULT 50, -- Cuántos bytes leer tras hallar el patrón
+                max_length INTEGER DEFAULT 50, -- Cuántos bytes leer tras hallar el patrón
                 FOREIGN KEY (format_id) REFERENCES formats(id)
             )
         """)
