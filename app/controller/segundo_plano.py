@@ -14,24 +14,25 @@ class ForensicWorker(QThread):
     def run(self):
         try:
             # 1. Obtener las reglas de metadatos desde la BD (por defecto PDF formato_id=1)
-            reglas = self.controller.db.obtener_reglas_formato(formato_id=1)
-            res_extraccion = self.controller.mdata.analizar_con_parametros_bd(self.ruta_archivo, reglas)
+            reglas = self.controller.db.obtener_reglas_formato(format_id=1)
 
+            res_extraccion = self.controller.mdata.analizar_con_parametros_bd(self.ruta_archivo, reglas)
+            
             if not res_extraccion.get("exito"):
                 raise FileNotFoundError("Archivo de prueba no encontrado")
 
             metadatos_dict, contenido_text, contenido_hex, contenido_bin = res_extraccion["resultados"]
             nombre_fichero = os.path.basename(self.ruta_archivo)
             ext_declarada = os.path.splitext(nombre_fichero)[1].lower()
-
+            
             # 2. Heuristica de discrepancia entre extension declarada y cabecera binaria real
             analisis_cabecera = self.controller.mdata.validar_cabecera_archivo(contenido_hex[:20], ext_declarada)
             iocs_extraidos = self.controller.mdata.extraer_iocs(contenido_text)
             resultados_yara = self.controller.mdata.analisis_yara(self.ruta_archivo)
             mitre_data = self.controller.mdata.correlacionar_todo_con_mitre(iocs_extraidos, resultados_yara)
             evaluacion_riesgo_cid = self.controller.mdata.evaluar_cid(mitre_data.get("correlaciones", []))
-            plan_mitigacion = self.controller.mdata.generar_mitigaciones(mitre_data.get("correlaciones", []))
-
+            plan_mitigacion = evaluacion_riesgo_cid.pop("recomendaciones", [])
+            
             # 3. Guardar el reporte en la base de datos cifrada
             reporte_db = {
                 "archivo": nombre_fichero,

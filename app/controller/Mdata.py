@@ -5,6 +5,7 @@ import re
 import yara
 from mitreattack.stix20 import MitreAttackData
 from controller.mappings import MAPEO_IOC_MITRE
+from model.database import Database
 class MdataController:
     def __init__(self, directorio_binarios=None):
         if directorio_binarios is None:
@@ -356,37 +357,36 @@ class MdataController:
             "integridad": {"nivel": "Bajo", "motivos": []},
             "disponibilidad": {"nivel": "Bajo", "motivos": []}
         }
+        recomendaciones_set = set()
 
-        # Ponderadores o reglas heurísticas basadas en las técnicas detectadas
+        db = Database()
+
         for item in correlaciones_mitre:
             tech_id = item.get("tecnica_id")
-            nombre = item.get("nombre")
+            registros = db.obtener_relacion_impacto_cid(tech_id)
 
-            # 1. Ejecución de comandos / JavaScript / Lanzadores (Afecta principalmente Integridad y Confidencialidad)
-            if tech_id in ["T1059.001", "T1059.003", "T1059.007", "T1204.002"]:
-                impacto_cid["integridad"]["nivel"] = "Alto"
-                impacto_cid["integridad"]["motivos"].append(f"La técnica {tech_id} ({nombre}) permite la ejecución arbitraria de comandos o scripts, alterando el flujo esperado del sistema.")
-                
-                impacto_cid["confidencialidad"]["nivel"] = "Medio"
-                impacto_cid["confidencialidad"]["motivos"].append(f"La ejecución no autorizada ({tech_id}) podría exponer información sensible del usuario o entorno.")
+            # registros es una lista de tuplas: (tech_id, dimension, level, purpose, recomendation)
+            for reg in registros:
+                _, dimension, level, purpose, recomendation = reg
+                dim = dimension.lower().strip()
 
-            # 2. Archivos incrustados o Phishing / Ingress (Afecta Integridad)
-            elif tech_id in ["T1566.001", "T1105"]:
-                impacto_cid["integridad"]["nivel"] = "Alto"
-                impacto_cid["integridad"]["motivos"].append(f"La técnica {tech_id} ({nombre}) facilita la descarga o transporte de payloads maliciosos externos.")
+                if dim in impacto_cid:
+                    impacto_cid[dim]["nivel"] = level
+                    if purpose not in impacto_cid[dim]["motivos"]:
+                        impacto_cid[dim]["motivos"].append(purpose)
 
-            # 3. Protocolos de red / C2 (Afecta Confidencialidad)
-            elif tech_id == "T1071.001":
-                impacto_cid["confidencialidad"]["nivel"] = "Alto"
-                impacto_cid["confidencialidad"]["motivos"].append(f"La detección de comunicación web externa ({tech_id}) sugiere posible exfiltración de datos o control remoto.")
+                if recomendation:
+                    recomendaciones_set.add(recomendation)
 
-            # 4. Explotación de vulnerabilidades / Heap Spray (Afecta Disponibilidad)
-            elif tech_id == "T1203":
-                impacto_cid["disponibilidad"]["nivel"] = "Crítico"
-                impacto_cid["disponibilidad"]["motivos"].append(f"La técnica {tech_id} ({nombre}) puede provocar caídas del lector (Crash) o denegación de servicio local.")
+        if not recomendaciones_set:
+            recomendaciones_set.add("Mantener buenas prácticas de higiene digital: no abrir archivos PDF provenientes de fuentes desconocidas y usar sandboxing.")
+
+        # Guardamos el plan de mitigación consolidado dentro de la misma estructura de retorno
+        impacto_cid["recomendaciones"] = list(recomendaciones_set)
 
         return impacto_cid
-    
+
+    # esta parte no es necesaria
     def generar_mitigaciones(self, correlaciones_mitre: list) -> list:
         recomendaciones = set()
 

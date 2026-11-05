@@ -54,6 +54,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS mittre (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tech_id TEXT UNIQUE NOT NULL,
+                dimension TEXT,
                 level TEXT,
                 purpose TEXT,
                 recomendation TEXT
@@ -115,12 +116,86 @@ class Database:
 
         # Semillas iniciales para la tabla MITTRE
         mittre_seeds = [
-            ('T1036', 'Alto', 'Ocultamiento de extensión o identidad de archivos', 'Validar siempre los Magic Bytes en lugar de confiar en la extensión del usuario.'),
-            ('T1027', 'Medio', 'Ofuscación de archivos o información interna', 'Realizar escaneo de patrones y desofuscar metadatos antes de procesar.')
+            # 1. T1059.001
+            (
+                'T1059.001', 'integridad', 'Alto',
+                'La técnica permite la ejecución arbitraria de comandos o scripts, alterando el flujo esperado del sistema.',
+                'Deshabilitar la ejecución de scripts de PowerShell no firmados en las políticas de GPO de la organización.'
+            ),
+            (
+                'T1059.001', 'confidencialidad', 'Medio',
+                'La ejecución no autorizada podría exponer información sensible del usuario o entorno.',
+                'Deshabilitar la ejecución de scripts de PowerShell no firmados en las políticas de GPO de la organización.'
+            ),
+
+            # 2. T1059.003
+            (
+                'T1059.003', 'integridad', 'Alto',
+                'La técnica permite la ejecución arbitraria de comandos o scripts, alterando el flujo esperado del sistema.',
+                'Restringir el acceso directo al intérprete de comandos (cmd.exe) para usuarios estándar mediante listas de control de acceso (ACL).'
+            ),
+            (
+                'T1059.003', 'confidencialidad', 'Medio',
+                'La ejecución no autorizada podría exponer información sensible del usuario o entorno.',
+                'Restringir el acceso directo al intérprete de comandos (cmd.exe) para usuarios estándar mediante listas de control de acceso (ACL).'
+            ),
+
+            # 3. T1059.007
+            (
+                'T1059.007', 'integridad', 'Alto',
+                'La técnica permite la ejecución arbitraria de comandos o scripts, alterando el flujo esperado del sistema.',
+                'Desactivar la ejecución de JavaScript de forma predeterminada en los visores de PDF (ej. Adobe Reader Config).'
+            ),
+            (
+                'T1059.007', 'confidencialidad', 'Medio',
+                'La ejecución no autorizada podría exponer información sensible del usuario o entorno.',
+                'Desactivar la ejecución de JavaScript de forma predeterminada en los visores de PDF (ej. Adobe Reader Config).'
+            ),
+
+            # 4. T1204.002
+            (
+                'T1204.002', 'integridad', 'Alto',
+                'La técnica permite la ejecución arbitraria de comandos o scripts, alterando el flujo esperado del sistema.',
+                'Bloquear la ejecución automática de acciones de lanzamiento (/Launch) y advertir al usuario ante aperturas de archivos adjuntos no verificados.'
+            ),
+            (
+                'T1204.002', 'confidencialidad', 'Medio',
+                'La ejecución no autorizada podría exponer información sensible del usuario o entorno.',
+                'Bloquear la ejecución automática de acciones de lanzamiento (/Launch) y advertir al usuario ante aperturas de archivos adjuntos no verificados.'
+            ),
+
+            # 5. T1566.001
+            (
+                'T1566.001', 'integridad', 'Alto',
+                'Facilita la descarga o transporte de payloads maliciosos externos.',
+                'Implementar pasarelas de correo y filtros de seguridad perimétricos para bloquear documentos PDF con objetos incrustados sospechosos.'
+            ),
+
+            # 6. T1105
+            (
+                'T1105', 'integridad', 'Alto',
+                'Facilita la descarga o transporte de payloads maliciosos externos.',
+                'Monitorear y restringir el uso de utilidades nativas del sistema como certutil.exe o bitsadmin.exe mediante reglas de EDR/Sysmon.'
+            ),
+
+            # 7. T1071.001
+            (
+                'T1071.001', 'confidencialidad', 'Alto',
+                'La detección de comunicación web externa sugiere posible exfiltración de datos o control remoto.',
+                'Configurar proxies web y firewalls perimétricos para inspeccionar y bloquear conexiones HTTP/HTTPS hacia dominios o IPs no reputadas.'
+            ),
+
+            # 8. T1203
+            (
+                'T1203', 'disponibilidad', 'Crítico',
+                'Puede provocar caídas del lector (Crash) o denegación de servicio local.',
+                'Mantener actualizados los parches de seguridad del software lector de PDF para evitar ataques de corrupción de memoria.'
+            )
         ]
+
         cursor.executemany("""
-            INSERT OR IGNORE INTO mittre (tech_id, level, purpose, recomendation)
-            VALUES (?, ?, ?, ?)
+            INSERT OR IGNORE INTO mittre (tech_id, dimension, level, purpose, recomendation)
+            VALUES (?, ?, ?, ?, ?)
         """, mittre_seeds)
 
         # Insertar Parámetros para la Forma 1 del PDF: Diccionario /Info clásico (Título, Autor, Creador, Fechas)
@@ -198,6 +273,18 @@ class Database:
             FROM extraction_parameters 
             WHERE format_id = ?
         """, (format_id,))
+        reglas = cursor.fetchall()
+        conn.close()
+        return reglas
+
+    def obtener_relacion_impacto_cid(self, tech_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT tech_id, dimension, level, purpose, recomendation
+            FROM mittre 
+            WHERE tech_id = ?
+        """, (tech_id,))
         reglas = cursor.fetchall()
         conn.close()
         return reglas
