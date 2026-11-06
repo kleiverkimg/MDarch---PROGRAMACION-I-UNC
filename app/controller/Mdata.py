@@ -16,7 +16,7 @@ class MdataController:
         if sys.platform.startswith("win"):
             self.nombre_ejecutable = "MD_HB.exe"
         else:
-            self.nombre_ejecutable = "MD_HB.bin"
+            self.nombre_ejecutable = "MD_HB"
             
         self.ruta_ejecutable = os.path.join(directorio_binarios, self.nombre_ejecutable)
         self.dir = directorio_binarios

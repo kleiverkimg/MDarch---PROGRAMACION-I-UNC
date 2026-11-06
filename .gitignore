@@ -1,8 +1,11 @@
 # Entorno virtual de Python
+build/
+dist/
 Include/
 Lib/
 Scripts/
 pyvenv.cfg
+MDArch.spec
 
 # Archivos de caché y temporales
 __pycache__/

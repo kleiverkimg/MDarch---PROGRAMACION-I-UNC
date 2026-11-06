@@ -647,14 +647,8 @@ class MainView(QMainWindow):
     def inicializar_spinner_carga(self):
         """Inicializa la propiedad self.movie requerida por MainController."""
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        print(base_dir)
-        posibles_gifs = [
-            os.path.join(base_dir, "assets\\spinner.gif"),
-            os.path.join(base_dir, "assets\\loading.gif"),
-            os.path.join(base_dir, "assets\\cargando.gif")
-        ]
-
-        ruta_gif = next((g for g in posibles_gifs if os.path.exists(g)), None)
+        
+        ruta_gif = os.path.join(base_dir, "assets\\spinner.gif")
         
         self.lbl_spinner = QLabel("Analizando archivo...", self)
 
