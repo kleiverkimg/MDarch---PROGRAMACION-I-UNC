@@ -3,6 +3,7 @@ import sys
 import os
 import re
 import yara
+import stat
 from mitreattack.stix20 import MitreAttackData
 from controller.mappings import MAPEO_IOC_MITRE
 from model.database import Database
@@ -20,6 +21,11 @@ class MdataController:
             
         self.ruta_ejecutable = os.path.join(directorio_binarios, self.nombre_ejecutable)
         self.dir = directorio_binarios
+        if not sys.platform.startswith("win"):
+            if os.path.exists(self.ruta_ejecutable):
+                # Obtiene los permisos actuales y añade permisos de ejecución (+x)
+                st = os.stat(self.ruta_ejecutable)
+                os.chmod(self.ruta_ejecutable, st.st_mode | stat.S_IEXEC)
 
     def ejecutar_extraccion(self, ruta_archivo):
         if not os.path.exists(self.ruta_ejecutable):
