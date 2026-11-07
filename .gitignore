@@ -1,6 +1,5 @@
 # Entorno virtual de Python
 build/
-dist/
 Include/
 Lib/
 Scripts/
