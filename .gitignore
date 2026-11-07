@@ -5,7 +5,6 @@ Include/
 Lib/
 Scripts/
 pyvenv.cfg
-MDArch.spec
 
 # Archivos de caché y temporales
 __pycache__/
